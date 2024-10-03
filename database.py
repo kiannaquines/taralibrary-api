@@ -22,10 +22,10 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, unique=True)
     year = Column(String(50))
     college = Column(String(255))
-    major = Column(String(255))
+    course = Column(String(255))
 
     def __repr__(self):
         return f"<Profile(id={self.id}, user_id={self.user_id}, year={self.year})>"

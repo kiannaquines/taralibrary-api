@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, HttpUrl
-from typing import List, Optional
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -28,34 +28,17 @@ class LoginResponse(BaseModel):
 
 class ProfileCreate(BaseModel):
     user_id: int
-    year: Optional[str] = None
-    college: Optional[str] = None
-    course: Optional[str] = None
+    year: Optional[str]
+    college: Optional[str]
+    course: Optional[str]
 
-class Profile(ProfileCreate):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-class ZoneImageCreate(BaseModel):
-    image_url: HttpUrl
-    zone_id: int
-
-class ZoneImage(ZoneImageCreate):
-    id: int
-
-    class Config:
-        from_attributes = True
 
 class ZoneCreate(BaseModel):
     name: str
     description: str
-    images: Optional[List[ZoneImageCreate]] = None
 
-class Zone(ZoneCreate):
+class ZoneResponse(BaseModel):
     id: int
-    zone_images: List[ZoneImage] = []
-
-    class Config:
-        from_attributes = True
+    name: str
+    description: str
+    image_urls: List[str]

@@ -15,6 +15,8 @@ db_password = get_env_variable("DATABASE_PASSWORD")
 db_host = get_env_variable("DATABASE_HOST")
 algorithm = get_env_variable("ALGORITHM")
 secret_token = get_env_variable("SECRET_KEY")
+upload_path = get_env_variable("UPLOAD_DIRECTORY")
+
 
 try:
     expiration_token = int(get_env_variable("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
@@ -26,4 +28,6 @@ DATABASE_URL = f"mysql+mysqlconnector://{db_user}:{db_password}@{db_host}/{db_na
 SECRET_KEY = secret_token
 ALGORITHM = algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = expiration_token
+UPLOAD_DIRECTORY = upload_path
+
 
