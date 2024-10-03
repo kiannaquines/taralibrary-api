@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from sqlalchemy.exc import SQLAlchemyError
-from schemas import ProfileCreate
-from database import Profile
+from schema.profile_schema import ProfileCreate
+from database.database import Profile
 
-# DONE
+
 def create_profile(db: Session, profile_create: ProfileCreate) -> ProfileCreate:
     db_profile = Profile(
         user_id=profile_create.user_id,
@@ -21,15 +21,11 @@ def create_profile(db: Session, profile_create: ProfileCreate) -> ProfileCreate:
         db.rollback()
         raise Exception("Failed to create profile")
 
-
-# DONE
 def get_profiles(db: Session, skip: int = 0, limit: int = 10) -> List[Profile]:
     return db.query(Profile).offset(skip).limit(limit).all()
 
-# DONE
 def get_profile(db: Session, profile_id: int) -> Optional[Profile]:
     return db.query(Profile).filter(Profile.id == profile_id).first()
-
 
 def update_profile(
     db: Session, profile_id: int, profile: ProfileCreate

@@ -3,15 +3,15 @@ import os
 import shutil
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from schemas import (
+from schema.zone_schema import (
     ZoneCreate,
     ZoneResponse,
     ZoneImageResponse,
 )
-from database import Zones, ZoneImage
+from database.database import Zones, ZoneImage
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import UploadFile
-from settings import UPLOAD_DIRECTORY
+from config.settings import UPLOAD_DIRECTORY
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError

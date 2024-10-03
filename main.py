@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from routes.auth_route import auth_router
 from routes.profile_route import profile_router
 from routes.zone_route import zone_router
-from database import Base
+from database.database import Base
 from services.db_services import engine
 
 app = FastAPI()

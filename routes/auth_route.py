@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import timedelta
-from schemas import UserCreate, UserInDB, RegisterResponse, LoginRequest, LoginResponse
+from schema.auth_schema import UserCreate, RegisterResponse, LoginRequest, LoginResponse
+from schema.user_schema import UserInDB
 from sqlalchemy.orm import Session
 from services.auth_services import (
     get_password_hash,
@@ -11,8 +12,8 @@ from services.auth_services import (
 from services.db_services import (
     get_db
 )
-from database import User
-from settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from database.database import User
+from config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
 
 auth_router = APIRouter()
 
