@@ -1,9 +1,12 @@
 from fastapi import FastAPI
-from view import router as views_router
+from routes.auth_route import auth_router
+from routes.profile_route import profile_router
+from routes.zone_route import zone_router
+from routes.zone_img_route import zone_img_router
 
 app = FastAPI()
-app.include_router(views_router)
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+app.include_router(profile_router, prefix="/api/v1", tags=["profiles"])
+app.include_router(zone_router, prefix="/api/v1", tags=["zones"])
+app.include_router(zone_img_router, prefix="/api/v1", tags=["zone-images"])

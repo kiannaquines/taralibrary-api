@@ -2,22 +2,22 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import timedelta
 from schemas import UserCreate, UserInDB, RegisterResponse, LoginRequest, LoginResponse
 from sqlalchemy.orm import Session
-from utils import (
-    get_db,
+from services.auth_services import (
     get_password_hash,
     verify_password,
     create_access_token,
-    get_current_user,
-    engine,
+    get_current_user
 )
-from database import User, Base
+from services.db_services import (
+    get_db
+)
+from database import User
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
 
-Base.metadata.create_all(bind=engine)
-router = APIRouter()
+auth_router = APIRouter()
 
 
-@router.post("/auth/register", response_model=RegisterResponse)
+@auth_router.post("/auth/register", response_model=RegisterResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         db_user = db.query(User).filter(User.username == user.username).first()
@@ -41,28 +41,28 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
             username=new_user.username,
             first_name=new_user.first_name,
             last_name=new_user.last_name,
-            password=user.password
+            password=user.password,
         )
 
-        return RegisterResponse(message="User registered successfully", user=user_response)
+        return RegisterResponse(
+            message="User registered successfully", user=user_response
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.post("/auth/login", response_model=LoginResponse)
-async def login(
-    form_data: LoginRequest,
-    db: Session = Depends(get_db)
-):
+
+@auth_router.post("/auth/login", response_model=LoginResponse)
+async def login(form_data: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,9 +74,10 @@ async def login(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    
+
     return LoginResponse(access_token=access_token, token_type="bearer")
 
-@router.get("/users/me", response_model=UserInDB)
+
+@auth_router.get("/users/me", response_model=UserInDB)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user

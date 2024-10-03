@@ -14,6 +14,10 @@ class User(Base):
     first_name = Column(String(50))
     last_name = Column(String(50))
 
+    def __repr__(self):
+        return f"<User(id={self.id}, username={self.username})>"
+
+
 class Profile(Base):
     __tablename__ = "profiles"
 
@@ -22,7 +26,11 @@ class Profile(Base):
     year = Column(String(50))
     college = Column(String(255))
     major = Column(String(255))
-    
+
+    def __repr__(self):
+        return f"<Profile(id={self.id}, user_id={self.user_id}, year={self.year})>"
+
+
 class Zones(Base):
     __tablename__ = "zones"
 
@@ -32,6 +40,10 @@ class Zones(Base):
 
     images = relationship("ZoneImage", back_populates="zone")
 
+    def __repr__(self):
+        return f"<Zone(id={self.id}, name={self.name})>"
+
+
 class ZoneImage(Base):
     __tablename__ = "zone_images"
 
@@ -40,3 +52,6 @@ class ZoneImage(Base):
     zone_id = Column(Integer, ForeignKey("zones.id"))
 
     zone = relationship("Zones", back_populates="images")
+
+    def __repr__(self):
+        return f"<ZoneImage(id={self.id}, zone_id={self.zone_id}, image_url={self.image_url})>"
