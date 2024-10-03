@@ -30,7 +30,7 @@ class ProfileCreate(BaseModel):
     user_id: int
     year: Optional[str] = None
     college: Optional[str] = None
-    major: Optional[str] = None
+    course: Optional[str] = None
 
 class Profile(ProfileCreate):
     id: int
