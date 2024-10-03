@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
 from fastapi import Depends, HTTPException, status
 from jose import JWTError, jwt
 from settings import SECRET_KEY, ALGORITHM
 from database import User
-from db_services import *
+from services.db_services import (
+    get_db,
+    oauth2_scheme,
+    pwd_context
+)
 
 
 def get_current_user(
