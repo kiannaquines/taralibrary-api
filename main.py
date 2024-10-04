@@ -4,11 +4,15 @@ from routes.profile_route import profile_router
 from routes.zone_route import zone_router
 from database.database import Base
 from services.db_services import engine
+from routes.likes_route import likes_router
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
-
 Base.metadata.create_all(bind=engine)
 
-app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
-app.include_router(profile_router, prefix="/api/v1", tags=["profiles"])
-app.include_router(zone_router, prefix="/api/v1", tags=["zones"])
+app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
+app.include_router(profile_router, prefix="/api/v1", tags=["Profiles"])
+app.include_router(zone_router, prefix="/api/v1", tags=["Zones"])
+app.include_router(likes_router, prefix="/api/v1", tags=["Likes"])
