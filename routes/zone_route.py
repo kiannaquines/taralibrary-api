@@ -11,6 +11,8 @@ from services.zone_services import (
 from schema.zone_schema import ZoneResponse, ZoneCreate
 from typing import List, Optional
 from fastapi.exceptions import HTTPException
+from database.database import User
+from services.auth_services import get_current_user
 
 zone_router = APIRouter()
 
@@ -20,6 +22,7 @@ async def add_zone(
     name: str = Form(...),
     description: str = Form(...),
     files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     zone = ZoneCreate(name=name, description=description)
@@ -30,6 +33,7 @@ async def add_zone(
 async def view_zones(
     skip: int = 0,
     limit: int = 10,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return get_zones(db=db, skip=skip, limit=limit)
@@ -38,6 +42,7 @@ async def view_zones(
 @zone_router.get("/zones/{zone_id}", response_model=ZoneResponse)
 async def view_zone_details(
     zone_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     db_zone = get_zone(db=db, zone_id=zone_id)
@@ -52,6 +57,7 @@ async def edit_zone(
     name: str = Form(...),
     description: str = Form(...),
     files: Optional[List[UploadFile]] = File(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     zone = ZoneCreate(name=name, description=description)
@@ -65,6 +71,7 @@ async def edit_zone(
 @zone_router.delete("/zones/{zone_id}", response_model=ZoneCreate)
 async def remove_zone(
     zone_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     db_zone = delete_zone(db=db, zone_id=zone_id)

@@ -10,12 +10,15 @@ from services.profile_services import (
 )
 from schema.profile_schema import ProfileCreate
 from typing import List
+from database.database import User
+from services.auth_services import get_current_user
 
 profile_router = APIRouter()
 
 @profile_router.post("/profiles/", response_model=ProfileCreate)
 async def add_profile(
     profile_create: ProfileCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -28,6 +31,7 @@ async def add_profile(
 async def view_profiles(
     skip: int = 0,
     limit: int = 10,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return get_profiles(db=db, skip=skip, limit=limit)
@@ -36,6 +40,7 @@ async def view_profiles(
 @profile_router.get("/profiles/{profile_id}", response_model=ProfileCreate)
 async def view_profile(
     profile_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     db_profile = get_profile(db=db, profile_id=profile_id)
@@ -48,6 +53,7 @@ async def view_profile(
 async def edit_profile(
     profile_id: int,
     profile_update: ProfileCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     db_profile = update_profile(db=db, profile_id=profile_id, profile=profile_update)
@@ -65,6 +71,7 @@ async def edit_profile(
 @profile_router.delete("/profiles/{profile_id}", response_model=ProfileCreate)
 async def remove_profile(
     profile_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     db_profile = delete_profile(db=db, profile_id=profile_id)
