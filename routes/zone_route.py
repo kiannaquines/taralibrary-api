@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Form
+from fastapi import APIRouter, Depends, File, UploadFile, Form, status
 from sqlalchemy.orm import Session
 from services.db_services import get_db
 from services.zone_services import (
@@ -47,7 +47,7 @@ async def view_zone_details(
 ):
     db_zone = get_zone(db=db, zone_id=zone_id)
     if db_zone is None:
-        raise HTTPException(status_code=404, detail="Zone not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
     return db_zone
 
 
@@ -64,7 +64,7 @@ async def edit_zone(
     db_zone = update_zone(db=db, zone_id=zone_id, zone=zone, files=files)
 
     if db_zone is None:
-        raise HTTPException(status_code=404, detail="Zone not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
     return db_zone
 
 
@@ -76,5 +76,5 @@ async def remove_zone(
 ):
     db_zone = delete_zone(db=db, zone_id=zone_id)
     if db_zone is None:
-        raise HTTPException(status_code=404, detail="Zone not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
     return db_zone

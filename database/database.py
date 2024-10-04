@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -69,6 +69,13 @@ class Profile(Base):
         return f"<Profile(id={self.id}, user_id={self.user_id}, year={self.year})>"
 
 
+zone_category_association = Table(
+    "zone_category",
+    Base.metadata,
+    Column("zone_id", Integer, ForeignKey("zones.id")),
+    Column("category_id", Integer, ForeignKey("categories.id")),
+)
+
 class Zones(Base):
     __tablename__ = "zones"
 
@@ -83,6 +90,8 @@ class Zones(Base):
         server_default=func.current_timestamp(),
         onupdate=func.now(),
     )
+
+    categories = relationship("Category", secondary=zone_category_association, back_populates="zones")
 
     def __repr__(self):
         return f"<Zone(id={self.id}, name={self.name})>"
@@ -120,5 +129,21 @@ class Comment(Base):
         onupdate=func.now(),
     )
 
+
     def __repr__(self):
         return f"<Comment(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, comment={self.comment}, date_added={self.date_added})>"
+    
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    category = Column(String(255), index=True)
+    date_added = Column(DateTime(timezone=True), index=True, server_default=func.current_timestamp())
+    update_date = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.now())
+
+    zones = relationship("Zones", secondary=zone_category_association, back_populates="categories")
+
+    def __repr__(self):
+        return f"<Category(id={self.id}, category={self.category})>"
+

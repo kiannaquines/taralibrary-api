@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import timedelta
-from schema.auth_schema import UserCreate, RegisterResponse, LoginRequest, LoginResponse
+from schema.auth_schema import UserCreate, RegisterResponse, LoginResponse
 from schema.user_schema import UserResponse
 from sqlalchemy.orm import Session
 from services.auth_services import (
@@ -13,15 +13,20 @@ from services.db_services import get_db
 from database.database import User
 from config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
 from sqlalchemy.exc import IntegrityError, DataError, OperationalError, SQLAlchemyError
+from fastapi.security import OAuth2PasswordRequestForm
 
 auth_router = APIRouter()
+
 
 @auth_router.post("/auth/register", response_model=RegisterResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         db_user = db.query(User).filter(User.username == user.username).first()
         if db_user:
-            raise HTTPException(status_code=400, detail="Username already registered")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered",
+            )
 
         hashed_password = get_password_hash(user.password)
         new_user = User(
@@ -51,29 +56,39 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(
-            status_code=400, detail=f"Integrity error: Check for duplicates. {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Integrity error: Check for duplicates. {str(e)}",
         )
     except DataError as e:
         db.rollback()
         raise HTTPException(
-            status_code=400, detail=f"Data error: Invalid data format. {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Data error: Invalid data format. {str(e)}",
         )
     except OperationalError as e:
         db.rollback()
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Operational error: Database connection issue. {str(e)}",
         )
 
     except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error occurred {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error occurred {str(e)}",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(e)}",
+        )
 
 
 @auth_router.post("/auth/login", response_model=LoginResponse)
-async def login(form_data: LoginRequest, db: Session = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.username == form_data.username).first()
 
     if not user:

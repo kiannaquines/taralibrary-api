@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from services.db_services import get_db
 from services.profile_services import (
@@ -24,7 +24,7 @@ async def add_profile(
     try:
         return create_profile(db=db, profile_create=profile_create)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create profile")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create profile")
 
 
 @profile_router.get("/profiles/", response_model=List[ProfileCreate])
@@ -45,7 +45,7 @@ async def view_profile(
 ):
     db_profile = get_profile(db=db, profile_id=profile_id)
     if db_profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return db_profile
 
 
@@ -58,7 +58,7 @@ async def edit_profile(
 ):
     db_profile = update_profile(db=db, profile_id=profile_id, profile=profile_update)
     if db_profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
     return ProfileCreate(
         user_id=db_profile.user_id,
@@ -76,5 +76,5 @@ async def remove_profile(
 ):
     db_profile = delete_profile(db=db, profile_id=profile_id)
     if db_profile is None:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return db_profile
