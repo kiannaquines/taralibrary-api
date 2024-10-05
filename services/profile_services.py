@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from schema.profile_schema import ProfileCreate
 from database.database import Profile
-
+from fastapi import HTTPException, status
 
 def create_profile(db: Session, profile_create: ProfileCreate) -> ProfileCreate:
     db_profile = Profile(
@@ -19,7 +19,11 @@ def create_profile(db: Session, profile_create: ProfileCreate) -> ProfileCreate:
         return db_profile
     except SQLAlchemyError as e:
         db.rollback()
-        raise Exception("Failed to create profile")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create profile: " + str(e))
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create profile: " + str(e))
 
 def get_profiles(db: Session, skip: int = 0, limit: int = 10) -> List[Profile]:
     return db.query(Profile).offset(skip).limit(limit).all()
@@ -40,7 +44,7 @@ def update_profile(
             return db_profile
         except SQLAlchemyError as e:
             db.rollback()
-            raise Exception("Failed to update profile: " + str(e))
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile: " + str(e))
     return None
 
 
@@ -53,5 +57,5 @@ def delete_profile(db: Session, profile_id: int) -> Optional[Profile]:
             return db_profile
         except SQLAlchemyError as e:
             db.rollback()
-            raise Exception("Failed to delete profile")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete profile: " + str(e))
     return None

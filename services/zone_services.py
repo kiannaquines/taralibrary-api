@@ -10,7 +10,7 @@ from schema.zone_schema import (
 )
 from database.database import Zones, ZoneImage
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import UploadFile
+from fastapi import UploadFile, status
 from config.settings import UPLOAD_DIRECTORY
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
@@ -66,6 +66,9 @@ def get_zones(db: Session, skip: int = 0, limit: int = 10) -> List[ZoneResponse]
         .all()
     )
 
+    if not zones:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No zones found")
+
     zone_responses = []
     for zone in zones:
         zone_responses.append(
@@ -91,8 +94,8 @@ def get_zone(db: Session, zone_id: int) -> ZoneResponse:
         .first()
     )
 
-    if zone is None:
-        return None
+    if not zone:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
 
     return ZoneResponse(
         id=zone.id,

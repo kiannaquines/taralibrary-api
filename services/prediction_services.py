@@ -17,7 +17,6 @@ def get_predictions(db: Session) -> List[PredictionResponse]:
 
     try:
 
-        
         return [
             PredictionResponse(
                 id=prediction.id,
