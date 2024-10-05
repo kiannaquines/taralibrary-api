@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Table
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Table, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -146,4 +146,55 @@ class Category(Base):
 
     def __repr__(self):
         return f"<Category(id={self.id}, category={self.category})>"
+    
+
+
+class Rating(Base):
+    
+    __tablename__ = "ratings"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
+    score = Column(Integer)
+    date_rate = Column(DateTime(timezone=True), index=True, server_default=func.current_timestamp())
+
+    def __repr__(self):
+        return f"<Rating(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, score={self.score}, date_rate={self.date_rate})>"
+
+
+class Device(Base):
+    
+    __tablename__ = "devices"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    device_addr = Column(String(255), unique=True, index=True)
+    date_detected = Column(DateTime(), index=True,)
+    is_randomized = Column(Boolean)
+    device_power = Column(Integer)
+    frame_type = Column(String(255))
+    zone = Column(Integer, ForeignKey("zones.id"))
+    processed = Column(Boolean, default=False)
+
+
+    def __repr__(self):
+        return f"<Device(id={self.id}, device_addr={self.device_addr}, zone={self.zone}, processed={self.processed})>"
+    
+
+class Prediction(Base):
+    __tablename__ = "predictions"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
+    estimated_count = Column(Integer)
+    first_seen = Column(DateTime(), index=True)
+    last_seen = Column(DateTime(), index=True)
+    scanned_minutes = Column(Integer)
+
+
+    def __repr__(self):
+        return f"<Prediction(id={self.id}, zone_id={self.zone_id}, estimated_count={self.estimated_count}, first_seen={self.first_seen}, last_seen={self.last_seen}, scanned_minutes={self.scanned_minutes})>"
+
+    
+
 
