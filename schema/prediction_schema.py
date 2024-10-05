@@ -6,7 +6,7 @@ class PredictionResponse(BaseModel):
     zone_id: int
     estimated_count: int
     first_seen: datetime
-    last_updated: datetime
+    last_seen: datetime
     scanned_minutes: int
 
     class Config:

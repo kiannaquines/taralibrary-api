@@ -42,8 +42,17 @@ def add_comment(db: Session, comment_data: CommentCreate) -> CommentCreate:
 
 def get_comments(db: Session) -> List[CommentViewResponse]:
 
+    response = db.query(Comment).all()
+
+    if not response:
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No comments found",
+        )
+    
     try:
-        response = db.query(Comment).all()
+
         return [
             CommentViewResponse(
                 id=comment.id,
@@ -56,13 +65,11 @@ def get_comments(db: Session) -> List[CommentViewResponse]:
             for comment in response
         ]
     except Exception as e:
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch comments: {str(e)}",
         )
     except SQLAlchemyError as e:
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch comments: {str(e)}",
@@ -71,16 +78,18 @@ def get_comments(db: Session) -> List[CommentViewResponse]:
 
 def get_comment(db: Session, comment_id: int) -> CommentViewResponse:
 
+
+    response = db.query(Comment).filter(Comment.id == comment_id).first()
+
+    if not response:
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+    
     try:
-        response = db.query(Comment).filter(Comment.id == comment_id).first()
-
-        if not response:
-
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Comment not found",
-            )
-
+    
         return CommentViewResponse(
             id=response.id,
             zone_id=response.zone_id,
@@ -91,18 +100,15 @@ def get_comment(db: Session, comment_id: int) -> CommentViewResponse:
         )
 
     except Exception as e:
-
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch comment: {str(e)}",
         )
 
     except SQLAlchemyError as e:
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch comment: {str(e)}",
+            detail=f"Failed to fetch comment: ss{str(e)}",
         )
 
 
@@ -112,16 +118,16 @@ def edit_comment(
     update_data: CommentUpdate,
 ) -> CommentViewResponse:
 
+    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+
+    if not comment:
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+    
     try:
-
-        comment = db.query(Comment).filter(Comment.id == comment_id).first()
-
-        if not comment:
-
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Comment not found",
-            )
 
         comment.comment = update_data.comment
 
@@ -153,12 +159,17 @@ def edit_comment(
 
 
 def delete_comment(db: Session, comment_id: int) -> DeleteComment:
-    try:
 
-        db.query(Comment).filter(Comment.id == comment_id).delete(
-            synchronize_session=False
+    check_comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    
+    if not check_comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
         )
-
+    
+    try:
+        db.query(Comment).filter(Comment.id == comment_id).delete(synchronize_session=False)
         db.commit()
 
         return DeleteComment(

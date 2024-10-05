@@ -7,6 +7,7 @@ from services.db_services import engine
 from routes.likes_route import likes_router
 from routes.comment_route import comment_router
 from fastapi.middleware.cors import CORSMiddleware
+from routes.prediction_route import prediction_router
 
 origin = ["*"]
 
@@ -31,4 +32,6 @@ app.include_router(profile_router, prefix="/api/v1", tags=["Profiles"])
 app.include_router(zone_router, prefix="/api/v1", tags=["Zones"])
 app.include_router(likes_router, prefix="/api/v1", tags=["Likes"])
 app.include_router(comment_router, prefix="/api/v1", tags=["Comment"])
+
+app.include_router(prediction_router, prefix="/api/v1", tags=["Predictions"])
 
