@@ -95,6 +95,7 @@ class Zones(Base):
     description = Column(String(555))
 
     images = relationship("ZoneImage", back_populates="zone")
+    predictions = relationship("Prediction", back_populates="zone")
     date_added = Column(DateTime(timezone=True), index=True, default=func.now())
     update_date = Column(
         DateTime(timezone=True),
@@ -199,6 +200,7 @@ class Prediction(Base):
     first_seen = Column(DateTime(), index=True)
     last_seen = Column(DateTime(), index=True)
     scanned_minutes = Column(Integer)
+    zone = relationship("Zones", back_populates="predictions")
 
     def __repr__(self):
         return f"<Prediction(id={self.id}, zone_id={self.zone_id}, estimated_count={self.estimated_count}, first_seen={self.first_seen}, last_seen={self.last_seen}, scanned_minutes={self.scanned_minutes})>"
