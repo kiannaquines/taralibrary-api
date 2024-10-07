@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.database import Comment
+from database.database import Comment, User, Zones
 from schema.comment_schema import (
     CommentCreate,
     CommentViewResponse,
@@ -9,9 +9,28 @@ from schema.comment_schema import (
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException, status
+from services.auth_services import verify_current_user
 
 
-def add_comment(db: Session, comment_data: CommentCreate) -> CommentCreate:
+def add_comment(
+    db: Session, current_user: User, comment_data: CommentCreate
+) -> CommentCreate:
+
+    if not verify_current_user(
+        current_user_id=current_user.id,
+        profile_creation_user_id=comment_data.user_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You are not authorized to add a comment.",
+        )
+
+    zone_check = db.query(Zones).filter(Zones.id == comment_data.zone_id).first()
+
+    if not zone_check:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found"
+        )
 
     try:
         add_comment = Comment(
@@ -25,20 +44,20 @@ def add_comment(db: Session, comment_data: CommentCreate) -> CommentCreate:
         db.refresh(add_comment)
         return add_comment
 
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add comment: {str(e)}",
-        )
 
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add comment: {str(e)}",
+            detail="Failed to add comment",
         )
 
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Something went wrong",
+        )
 
 def get_comments(db: Session) -> List[CommentViewResponse]:
 
@@ -50,7 +69,7 @@ def get_comments(db: Session) -> List[CommentViewResponse]:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No comments found",
         )
-    
+
     try:
 
         return [
@@ -78,7 +97,6 @@ def get_comments(db: Session) -> List[CommentViewResponse]:
 
 def get_comment(db: Session, comment_id: int) -> CommentViewResponse:
 
-
     response = db.query(Comment).filter(Comment.id == comment_id).first()
 
     if not response:
@@ -87,9 +105,9 @@ def get_comment(db: Session, comment_id: int) -> CommentViewResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found",
         )
-    
+
     try:
-    
+
         return CommentViewResponse(
             id=response.id,
             zone_id=response.zone_id,
@@ -118,29 +136,29 @@ def edit_comment(
     update_data: CommentUpdate,
 ) -> CommentViewResponse:
 
-    comment = db.query(Comment).filter(Comment.id == comment_id).first()
+    comment_db = db.query(Comment).filter(Comment.id == comment_id).first()
 
-    if not comment:
+    if not comment_db:
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found",
         )
-    
+
     try:
 
-        comment.comment = update_data.comment
+        comment_db.comment = update_data.comment
 
         db.commit()
-        db.refresh(comment)
+        db.refresh(comment_db)
 
         return CommentViewResponse(
-            id=comment.id,
-            zone_id=comment.zone_id,
-            user_id=comment.user_id,
-            comment=comment.comment,
-            date_added=comment.date_added,
-            update_date=comment.update_date,
+            id=comment_db.id,
+            zone_id=comment_db.zone_id,
+            user_id=comment_db.user_id,
+            comment=comment_db.comment,
+            date_added=comment_db.date_added,
+            update_date=comment_db.update_date,
         )
 
     except Exception as e:
@@ -161,19 +179,20 @@ def edit_comment(
 def delete_comment(db: Session, comment_id: int) -> DeleteComment:
 
     check_comment = db.query(Comment).filter(Comment.id == comment_id).first()
-    
+
     if not check_comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found",
         )
-    
+
     try:
-        db.query(Comment).filter(Comment.id == comment_id).delete(synchronize_session=False)
+        db.query(Comment).filter(Comment.id == comment_id).delete(
+            synchronize_session=False
+        )
         db.commit()
 
         return DeleteComment(
-            comment_id=comment_id,
             message="Comment deleted successfully",
             is_deleted=True,
         )

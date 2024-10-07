@@ -23,6 +23,5 @@ class CommentUpdate(BaseModel):
 
 
 class DeleteComment(BaseModel):
-    comment_id: int
     message: str
     is_deleted: bool

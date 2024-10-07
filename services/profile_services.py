@@ -66,7 +66,7 @@ def get_profile(db: Session, current_user: User, profile_id: int) -> Optional[Pr
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not authorized to view profile.",
         )
-    
+
     try:
 
         return db_profile
@@ -96,7 +96,7 @@ def update_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Profile not found",
         )
-    
+
     if not verify_current_user(
         current_user_id=current_user.id,
         profile_creation_user_id=profile.user_id,
@@ -143,7 +143,7 @@ def delete_profile(db: Session, current_user: User, profile_id: int) -> DeletePr
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Profile not found",
         )
-    
+
     if not verify_current_user(
         current_user_id=current_user.id,
         profile_creation_user_id=db_profile.user_id,

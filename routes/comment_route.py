@@ -29,36 +29,11 @@ async def create_comment(
     db: Session = Depends(get_db),
 ):
 
-    zone_check = db.query(Zones).filter(Zones.id == comment_data.zone_id).first()
-
-    if not zone_check:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found"
-        )
-
-    try:
-        new_comment = Comment(
-            comment=comment_data.comment,
-            user_id=comment_data.user_id,
-            zone_id=comment_data.zone_id,
-        )
-        return add_comment(
-            db=db,
-            comment_data=new_comment,
-        )
-
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add comment: {str(e)}",
-        )
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add comment: {str(e)}",
-        )
+    return add_comment(
+        db=db,
+        current_user=current_user,
+        comment_data=comment_data,
+    )
 
 
 @comment_router.get("/comments/", response_model=List[CommentViewResponse])

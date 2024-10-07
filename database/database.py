@@ -1,5 +1,14 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Table, Boolean
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    ForeignKey,
+    DateTime,
+    Table,
+    Boolean,
+    Numeric,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -77,6 +86,7 @@ zone_category_association = Table(
     Column("category_id", Integer, ForeignKey("categories.id")),
 )
 
+
 class Zones(Base):
     __tablename__ = "zones"
 
@@ -92,7 +102,9 @@ class Zones(Base):
         onupdate=func.now(),
     )
 
-    categories = relationship("Category", secondary=zone_category_association, back_populates="zones")
+    categories = relationship(
+        "Category", secondary=zone_category_association, back_populates="zones"
+    )
 
     def __repr__(self):
         return f"<Zone(id={self.id}, name={self.name})>"
@@ -119,6 +131,7 @@ class Comment(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
     comment = Column(String(555))
+    rating = Column(Integer, default=0)
     date_added = Column(
         DateTime(timezone=True),
         index=True,
@@ -130,72 +143,62 @@ class Comment(Base):
         onupdate=func.now(),
     )
 
-
     def __repr__(self):
         return f"<Comment(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, comment={self.comment}, date_added={self.date_added})>"
-    
+
 
 class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     category = Column(String(255), index=True)
-    date_added = Column(DateTime(timezone=True), index=True, server_default=func.current_timestamp())
-    update_date = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.now())
+    date_added = Column(
+        DateTime(timezone=True), index=True, server_default=func.current_timestamp()
+    )
+    update_date = Column(
+        DateTime(timezone=True),
+        server_default=func.current_timestamp(),
+        onupdate=func.now(),
+    )
 
-    zones = relationship("Zones", secondary=zone_category_association, back_populates="categories")
+    zones = relationship(
+        "Zones", secondary=zone_category_association, back_populates="categories"
+    )
 
     def __repr__(self):
         return f"<Category(id={self.id}, category={self.category})>"
-    
-
-
-class Rating(Base):
-    
-    __tablename__ = "ratings"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
-    score = Column(Integer)
-    date_rate = Column(DateTime(timezone=True), index=True, server_default=func.current_timestamp())
-
-    def __repr__(self):
-        return f"<Rating(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, score={self.score}, date_rate={self.date_rate})>"
 
 
 class Device(Base):
-    
+
     __tablename__ = "devices"
-    
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    device_addr = Column(String(255), unique=True, index=True)
-    date_detected = Column(DateTime(), index=True,)
+    device_addr = Column(String(255), index=True)
+    date_detected = Column(
+        DateTime(),
+        index=True,
+    )
     is_randomized = Column(Boolean)
     device_power = Column(Integer)
     frame_type = Column(String(255))
     zone = Column(Integer, ForeignKey("zones.id"))
     processed = Column(Boolean, default=False)
 
-
     def __repr__(self):
         return f"<Device(id={self.id}, device_addr={self.device_addr}, zone={self.zone}, processed={self.processed})>"
-    
+
 
 class Prediction(Base):
     __tablename__ = "predictions"
-    
+
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
+    score = Column(Numeric(5, 4))
     estimated_count = Column(Integer)
     first_seen = Column(DateTime(), index=True)
     last_seen = Column(DateTime(), index=True)
     scanned_minutes = Column(Integer)
 
-
     def __repr__(self):
         return f"<Prediction(id={self.id}, zone_id={self.zone_id}, estimated_count={self.estimated_count}, first_seen={self.first_seen}, last_seen={self.last_seen}, scanned_minutes={self.scanned_minutes})>"
-
-    
-
-
