@@ -15,6 +15,7 @@ class User(Base):
     hashed_password = Column(String(255))
     first_name = Column(String(50))
     last_name = Column(String(50))
+    verified = Column(Boolean, default=False)
     register_date = Column(
         DateTime(timezone=True),
         index=True,

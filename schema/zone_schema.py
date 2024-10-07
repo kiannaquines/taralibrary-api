@@ -11,6 +11,9 @@ class ZoneCreate(BaseModel):
     name: str
     description: str
 
+class ZoneRemoved(BaseModel):
+    message: str
+    is_deleted: bool
 
 class ZoneResponse(BaseModel):
     id: int

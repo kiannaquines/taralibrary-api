@@ -9,6 +9,7 @@ from routes.comment_route import comment_router
 from fastapi.middleware.cors import CORSMiddleware
 from routes.prediction_route import prediction_router
 from routes.device_route import device_router
+from routes.chart_routes import charts_router
 
 origin = ["*"]
 
@@ -35,4 +36,6 @@ app.include_router(likes_router, prefix="/api/v1", tags=["Likes"])
 app.include_router(comment_router, prefix="/api/v1", tags=["Comment"])
 app.include_router(device_router, prefix="/api/v1", tags=["Devices"])
 app.include_router(prediction_router, prefix="/api/v1", tags=["Predictions"])
+app.include_router(charts_router, prefix="/api/v1", tags=["Charts"])
+
 

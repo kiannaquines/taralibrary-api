@@ -1,10 +1,14 @@
 from pydantic import BaseModel
-from schema.user_schema import UserCreate
 
+class RegisterSuccess(BaseModel):
+    email: str
+    username: str
+    first_name: str
+    last_name: str
 
 class RegisterResponse(BaseModel):
     message: str
-    user: UserCreate
+    user: RegisterSuccess
 
 class LoginRequest(BaseModel):
     username: str
