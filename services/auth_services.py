@@ -162,6 +162,9 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def verify_current_user(current_user_id: int, profile_creation_user_id: int) -> bool:
+    return current_user_id == profile_creation_user_id
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (

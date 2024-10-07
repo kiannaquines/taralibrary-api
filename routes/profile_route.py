@@ -8,7 +8,7 @@ from services.profile_services import (
     update_profile,
     delete_profile,
 )
-from schema.profile_schema import ProfileCreate
+from schema.profile_schema import ProfileCreate, UpdateProfile, DeleteProfile
 from typing import List
 from database.database import User
 from services.auth_services import get_current_user
@@ -21,10 +21,8 @@ async def add_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    try:
-        return create_profile(db=db, profile_create=profile_create)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create profile")
+    return create_profile(db=db, current_user=current_user, profile_create=profile_create)
+  
 
 
 @profile_router.get("/profiles/", response_model=List[ProfileCreate])
@@ -43,38 +41,26 @@ async def view_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db_profile = get_profile(db=db, profile_id=profile_id)
+    db_profile = get_profile(db=db, current_user=current_user, profile_id=profile_id)
     if db_profile is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return db_profile
 
 
-@profile_router.put("/profiles/{profile_id}", response_model=ProfileCreate)
+@profile_router.put("/profiles/{profile_id}", response_model=UpdateProfile)
 async def edit_profile(
     profile_id: int,
-    profile_update: ProfileCreate,
+    profile_update: UpdateProfile,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db_profile = update_profile(db=db, profile_id=profile_id, profile=profile_update)
-    if db_profile is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+    
+    return update_profile(db=db, profile_id=profile_id, current_user=current_user, profile=profile_update)
 
-    return ProfileCreate(
-        user_id=db_profile.user_id,
-        year=db_profile.year,
-        college=db_profile.college,
-        course=db_profile.course,
-    )
-
-
-@profile_router.delete("/profiles/{profile_id}", response_model=ProfileCreate)
+@profile_router.delete("/profiles/{profile_id}", response_model=DeleteProfile)
 async def remove_profile(
     profile_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db_profile = delete_profile(db=db, profile_id=profile_id)
-    if db_profile is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
-    return db_profile
+    return delete_profile(db=db, current_user=current_user, profile_id=profile_id)
