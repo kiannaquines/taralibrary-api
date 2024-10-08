@@ -8,6 +8,7 @@ from sqlalchemy import (
     Table,
     Boolean,
     Numeric,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -24,7 +25,8 @@ class User(Base):
     hashed_password = Column(String(255))
     first_name = Column(String(50))
     last_name = Column(String(50))
-    verified = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False)
+    is_superuser = Column(Boolean, default=False)
     register_date = Column(
         DateTime(timezone=True),
         index=True,
@@ -188,6 +190,20 @@ class Device(Base):
 
     def __repr__(self):
         return f"<Device(id={self.id}, device_addr={self.device_addr}, zone={self.zone}, processed={self.processed})>"
+
+
+class VerificationCode(Base):
+
+    __tablename__ = "verification_codes"
+    __table_args__ = (UniqueConstraint("code"),)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    code = Column(Integer)
+    is_used = Column(Boolean, default=False)
+
+    def __repr__(self):
+        return (
+            f"VerificationCode(id={self.id}, code={self.code}, is_used={self.is_used})>"
+        )
 
 
 class Prediction(Base):

@@ -15,11 +15,6 @@ db_name = get_env_variable("DATABASE_NAME")
 db_user = get_env_variable("DATABASE_USERNAME")
 db_password = get_env_variable("DATABASE_PASSWORD")
 db_host = get_env_variable("DATABASE_HOST")
-algorithm = get_env_variable("ALGORITHM")
-secret_token = get_env_variable("SECRET_KEY")
-zone_upload_path = get_env_variable("ZONE_UPLOAD_DIRECTORY")
-profile_upload_path = get_env_variable("PROFILE_UPLOAD_DIRECTORY")
-
 
 try:
     expiration_token = int(get_env_variable("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
@@ -28,8 +23,12 @@ except ValueError:
 
 DATABASE_URL = f"mysql+mysqlconnector://{db_user}:{db_password}@{db_host}/{db_name}"
 
-SECRET_KEY = secret_token
-ALGORITHM = algorithm
+SECRET_KEY = get_env_variable("SECRET_KEY")
+ALGORITHM = get_env_variable("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = expiration_token
-ZONE_UPLOAD_DIRECTORY = zone_upload_path
-PROFILE_UPLOAD_DIRECTORY = profile_upload_path
+ZONE_UPLOAD_DIRECTORY = get_env_variable("ZONE_UPLOAD_DIRECTORY")
+PROFILE_UPLOAD_DIRECTORY = get_env_variable("PROFILE_UPLOAD_DIRECTORY")
+SMTP_SERVER = get_env_variable("SMTP_SERVER")
+SMTP_USERNAME = get_env_variable("SMTP_USERNAME")
+SMTP_PASSWORD = get_env_variable("SMTP_PASSWORD")
+SMTP_PORT = get_env_variable("SMTP_PORT")

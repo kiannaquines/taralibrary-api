@@ -4,14 +4,19 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from jose import JWTError, jwt
 from config.settings import SECRET_KEY, ALGORITHM
-from database.database import User
+from database.database import User, VerificationCode
 from services.db_services import get_db, oauth2_scheme, pwd_context
 from fastapi.security import OAuth2PasswordRequestForm
 from config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
-from schema.auth_schema import RegisterResponse, LoginResponse, RegisterSuccess
+from schema.auth_schema import *
 from schema.user_schema import UserCreate
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
+from services.send_email_services import (
+    send_email,
+    account_verification_email_body,
+    account_password_reset_email_body,
+)
 
 
 def authenticate_user(
@@ -46,7 +51,7 @@ def authenticate_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.verified:
+    if not user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User still not verified yet",
@@ -55,7 +60,12 @@ def authenticate_user(
     try:
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
+            data={
+                "sub": user.username,
+                "verified": user.is_verified,
+                "is_superuser": user.is_superuser,
+            },
+            expires_delta=access_token_expires,
         )
         return LoginResponse(access_token=access_token, token_type="bearer")
 
@@ -72,7 +82,7 @@ def authenticate_user(
         )
 
 
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+async def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = (
         db.query(User)
         .filter(or_(User.username == user.username, User.email == user.email))
@@ -102,14 +112,30 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.refresh(new_user)
 
         user_success = RegisterSuccess(
+            id=new_user.id,
             email=new_user.email,
             username=new_user.username,
             first_name=new_user.first_name,
             last_name=new_user.last_name,
         )
 
+        body = account_verification_email_body(db=db)
+
+        sent_email_status = send_email(
+            receiver_email=new_user.email,
+            subject="Account Verification",
+            body=body,
+        )
+
+        if not sent_email_status:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email",
+            )
+
         return RegisterResponse(
-            message="User registered successfully", user=user_success
+            message="User registered successfully, please check your email to verify your account.",
+            user=user_success,
         )
 
     except SQLAlchemyError as e:
@@ -165,6 +191,7 @@ def get_password_hash(password: str) -> str:
 def verify_current_user(current_user_id: int, profile_creation_user_id: int) -> bool:
     return current_user_id == profile_creation_user_id
 
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (
@@ -172,3 +199,117 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_account_code(
+    verification_data: VerificationRequest, db: Session
+) -> SuccessVerification:
+
+    if len(verification_data.code) > 6 or len(verification_data.code) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code should be a 6-digit number",
+        )
+
+    verify_user = db.query(User).filter(User.id == verification_data.user_id)
+    used_code = db.query(VerificationCode).filter(
+        VerificationCode.code == verification_data.code
+    )
+
+    if used_code.first().is_used:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has already been used",
+        )
+
+    if not verify_user.first() or not used_code.first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verification code or user not found",
+        )
+
+    verify_user.first().is_verified = True
+    used_code.first().is_used = True
+    db.commit()
+
+    return SuccessVerification(message="You have successfully verified your account")
+
+
+def reset_password(
+    db: Session, password_request_change_data: RequestChangePassword
+) -> SuccessVerification:
+    db_user = (
+        db.query(User).filter(User.email == password_request_change_data.email).first()
+    )
+
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cannot find your email address",
+        )
+
+    body = account_password_reset_email_body(
+        db=db,
+        email=db_user.email,
+    )
+
+    send_email_request = send_email(
+        receiver_email=db_user.email,
+        subject="Password Reset Request",
+        body=body,
+    )
+
+    if not send_email_request:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset email",
+        )
+
+    return SuccessVerification(message="Password reset request sent successfully")
+
+
+def change_password(db: Session, change_password_data: ChangePassword):
+
+    if len(change_password_data.code) > 6 or len(change_password_data.code) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code should be a 6-digit number",
+        )
+
+    if change_password_data.new_password != change_password_data.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirm password do not match",
+        )
+
+    db_code = (
+        db.query(VerificationCode)
+        .filter(
+            and_(
+                VerificationCode.code == change_password_data.code,
+                VerificationCode.is_used == False,
+            )
+        )
+        .first()
+    )
+
+    if not db_code:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verification code or user not found",
+        )
+
+    db_user = db.query(User).filter(User.id == change_password_data.user_id).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    db_user.hashed_password = get_password_hash(change_password_data.new_password)
+    db_code.is_used = True
+    db.commit()
+    db.refresh(db_user)
+
+    return SuccessVerification(message="Password has been chnaged successfully")
