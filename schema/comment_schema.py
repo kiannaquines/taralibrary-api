@@ -4,6 +4,7 @@ from datetime import datetime
 class CommentCreate(BaseModel):
     zone_id: int
     user_id: int
+    rating: int
     comment: str
 
 class CommentViewResponse(BaseModel):
@@ -17,6 +18,12 @@ class CommentViewResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class CommentZoneInfo(BaseModel):
+    id: int
+    fullname: str
+    comment: str
+    date_comment: datetime
+    rating: int
 
 class CommentUpdate(BaseModel):
     comment: str

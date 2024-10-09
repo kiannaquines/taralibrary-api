@@ -3,6 +3,7 @@ import os
 import shutil
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
+from schema.chart_schema import ChartDataResponse
 from schema.zone_schema import ZoneCreate, ZoneResponse, ZoneImageResponse, ZoneRemoved
 from database.database import Zones, ZoneImage
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,7 +13,9 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
-
+from schema.zone_schema import ZoneInfoResponse
+from schema.comment_schema import CommentViewResponse
+from statistics import mean
 
 def create_zone(
     db: Session,
@@ -34,7 +37,7 @@ def create_zone(
             with open(file_location, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
-            zone_image = ZoneImage(image_url=file_location, zone_id=db_zone.id)
+            zone_image = ZoneImage(image_url=unique_filename, zone_id=db_zone.id)
             db.add(zone_image)
             db.commit()
 
@@ -55,6 +58,7 @@ def create_zone(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Something went wrong: {str(e)}")
+
 
 def get_zones(db: Session, skip: int = 0, limit: int = 10) -> List[ZoneResponse]:
     zones = (
@@ -86,6 +90,7 @@ def get_zones(db: Session, skip: int = 0, limit: int = 10) -> List[ZoneResponse]
 
     return zone_responses
 
+
 def get_zone(db: Session, zone_id: int) -> ZoneResponse:
     zone = (
         db.query(Zones)
@@ -108,6 +113,7 @@ def get_zone(db: Session, zone_id: int) -> ZoneResponse:
             for image in zone.images
         ],
     )
+
 
 def update_zone(
     db: Session,
@@ -138,7 +144,7 @@ def update_zone(
                 with open(file_location, "wb") as buffer:
                     shutil.copyfileobj(file.file, buffer)
 
-                zone_image = ZoneImage(image_url=file_location, zone_id=db_zone.id)
+                zone_image = ZoneImage(image_url=unique_filename, zone_id=db_zone.id)
                 db.add(zone_image)
                 db.commit()
 
@@ -155,7 +161,7 @@ def update_zone(
                 for image in db_zone.images
             ],
         )
-    
+
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -163,6 +169,7 @@ def update_zone(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Something went wrong: {str(e)}")
+
 
 def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
     db_zone = db.query(Zones).filter(Zones.id == zone_id).first()
@@ -189,3 +196,87 @@ def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
     except SQLAlchemyError as e:
         db.rollback()
         raise e
+
+
+def get_info_zone_service(db: Session, zone_id: int) -> ZoneInfoResponse:
+    zone = (
+        db.query(Zones)
+        .filter(
+            Zones.id == zone_id,
+        )
+        .options(
+            joinedload(
+                Zones.predictions,
+            ),
+        )
+        .options(
+            joinedload(
+                Zones.comment_related,
+            ),
+        )
+        .options(
+            joinedload(
+                Zones.categories,
+            ),
+        )
+        .options(
+            joinedload(
+                Zones.images,
+            ),
+        )
+        .first()
+    )
+
+    if not zone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Zone not found",
+        )
+
+    try:
+        return ZoneInfoResponse(
+            id=zone.id,
+            name=zone.name,
+            description=zone.description,
+            comments=[
+                CommentViewResponse(
+                    id=comment.id,
+                    zone_id=comment.zone_id,
+                    user_id=comment.user_id,
+                    comment=comment.comment,
+                    date_added=comment.date_added,
+                    update_date=comment.update_date,
+                )
+                for comment in zone.comment_related
+            ],
+            images=[
+                ZoneImageResponse(
+                    id=image.id,
+                    zone_id=image.zone_id,
+                    image_url=image.image_url,
+                )
+                for image in zone.images
+            ],
+            predictions=[
+                ChartDataResponse(
+                    count=prediction.estimated_count,
+                    time=prediction.first_seen.strftime("%I:%M %p"),
+                )
+                for prediction in zone.predictions
+            ],
+            total_rating = round(mean(rating.rating for rating in zone.comment_related), 2),
+            total_reviews = len(zone.comment_related),
+
+        )
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Something went wrong while fetching zone information {e}",
+        )

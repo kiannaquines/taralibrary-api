@@ -7,14 +7,16 @@ from services.zone_services import (
     get_zones,
     update_zone,
     delete_zone,
+    get_info_zone_service,
 )
-from schema.zone_schema import ZoneResponse, ZoneCreate, ZoneRemoved
+from schema.zone_schema import ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse
 from typing import List, Optional
 from fastapi.exceptions import HTTPException
 from database.database import User
 from services.auth_services import get_current_user
 
 zone_router = APIRouter()
+
 
 @zone_router.get("/zones/", response_model=List[ZoneResponse])
 async def view_zones(
@@ -24,6 +26,7 @@ async def view_zones(
     db: Session = Depends(get_db),
 ):
     return get_zones(db=db, skip=skip, limit=limit)
+
 
 @zone_router.post("/zones/", response_model=ZoneResponse)
 async def add_zone(
@@ -45,7 +48,9 @@ async def view_zone_details(
 ):
     db_zone = get_zone(db=db, zone_id=zone_id)
     if db_zone is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found"
+        )
     return db_zone
 
 
@@ -72,3 +77,11 @@ async def remove_zone(
 ):
     db_zone = delete_zone(db=db, zone_id=zone_id)
     return db_zone
+
+
+@zone_router.get("/zones/fetch/info/{zone_id}", response_model=ZoneInfoResponse)
+def get_info_zone(
+    zone_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_info_zone_service(db=db, zone_id=zone_id)

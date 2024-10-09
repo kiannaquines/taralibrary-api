@@ -38,6 +38,8 @@ class User(Base):
         onupdate=func.now(),
     )
 
+    comments = relationship("Comment", back_populates="user")
+
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username})>"
 
@@ -96,8 +98,6 @@ class Zones(Base):
     name = Column(String(255))
     description = Column(String(555))
 
-    images = relationship("ZoneImage", back_populates="zone")
-    predictions = relationship("Prediction", back_populates="zone")
     date_added = Column(DateTime(timezone=True), index=True, default=func.now())
     update_date = Column(
         DateTime(timezone=True),
@@ -105,9 +105,25 @@ class Zones(Base):
         onupdate=func.now(),
     )
 
-    categories = relationship(
-        "Category", secondary=zone_category_association, back_populates="zones"
+    images = relationship(
+        "ZoneImage",
+        back_populates="zone",
     )
+    predictions = relationship(
+        "Prediction",
+        back_populates="zone",
+    )
+    categories = relationship(
+        "Category",
+        secondary=zone_category_association,
+        back_populates="zones",
+    )
+    comment_related = relationship(
+        "Comment",
+        back_populates="zone",
+    )
+
+    
 
     def __repr__(self):
         return f"<Zone(id={self.id}, name={self.name})>"
@@ -145,6 +161,9 @@ class Comment(Base):
         server_default=func.current_timestamp(),
         onupdate=func.now(),
     )
+
+    zone = relationship("Zones")
+    user = relationship("User")
 
     def __repr__(self):
         return f"<Comment(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, comment={self.comment}, date_added={self.date_added})>"

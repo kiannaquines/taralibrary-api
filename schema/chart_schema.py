@@ -14,6 +14,9 @@ class ChartData(BaseModel):
     last_seen: datetime
     scanned_minutes: int   
 
+class ChartDataResponse(BaseModel):
+    count: int
+    time: str
 
 class PredictionScore(BaseModel):
     zone_name: str

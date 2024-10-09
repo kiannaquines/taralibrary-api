@@ -19,7 +19,7 @@ from services.send_email_services import (
 )
 
 
-async def authenticate_user(
+def authenticate_user(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
 
@@ -34,7 +34,7 @@ async def authenticate_user(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database query failed",
+            detail=f"Database query failed {e}",
         )
 
     if user is None:

@@ -36,6 +36,7 @@ def add_comment(
         add_comment = Comment(
             user_id=comment_data.user_id,
             zone_id=comment_data.zone_id,
+            rating=comment_data.rating,
             comment=comment_data.comment,
         )
 
