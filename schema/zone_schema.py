@@ -32,3 +32,25 @@ class ZoneInfoResponse(BaseModel):
     total_rating: float
     total_reviews: int
 
+class PopularSectionResponse(BaseModel):
+    section_id: int
+    section_name: str
+    total_rating: float
+    image_url: str
+
+class RecommendSectionResponse(BaseModel):
+    section_id: int
+    status: str
+    section_name: str
+    description: str
+    total_rating: float
+    image_url: str
+
+
+class AllSectionResponse(BaseModel):
+    section_id: int
+    section_name: str
+    description: str
+    total_rating: float
+    image_url: str
+

@@ -7,7 +7,9 @@ from database.database import VerificationCode
 from sqlalchemy.orm import Session
 
 def verification_code_generator():
-    return "".join([str(random.randint(0, 9)) for _ in range(6)])
+    first_digit = random.randint(1, 9)
+    remaining_digits = [str(random.randint(0, 9)) for _ in range(5)]
+    return str(first_digit) + "".join(remaining_digits)
 
 
 def account_verification_email_body(db: Session):

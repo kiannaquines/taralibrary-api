@@ -3,13 +3,16 @@ from sqlalchemy.orm import Session
 from services.db_services import get_db
 from services.zone_services import (
     create_zone,
+    get_all_section_section_filters,
+    get_popular_zones_service,
+    get_recommended_zones_service,
     get_zone,
     get_zones,
     update_zone,
     delete_zone,
     get_info_zone_service,
 )
-from schema.zone_schema import ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse
+from schema.zone_schema import AllSectionResponse, RecommendSectionResponse, ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse, PopularSectionResponse
 from typing import List, Optional
 from fastapi.exceptions import HTTPException
 from database.database import User
@@ -26,6 +29,14 @@ async def view_zones(
     db: Session = Depends(get_db),
 ):
     return get_zones(db=db, skip=skip, limit=limit)
+
+
+@zone_router.get("/zones/all", response_model=List[AllSectionResponse])
+async def view_zones(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_all_section_section_filters(db=db)
 
 
 @zone_router.post("/zones/", response_model=ZoneResponse)
@@ -79,9 +90,27 @@ async def remove_zone(
     return db_zone
 
 
-@zone_router.get("/zones/fetch/info/{zone_id}", response_model=ZoneInfoResponse)
+@zone_router.get("/zones/info/{zone_id}", response_model=ZoneInfoResponse)
 def get_info_zone(
     zone_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return get_info_zone_service(db=db, zone_id=zone_id)
+
+
+
+@zone_router.get("/zones/popular/", response_model=List[PopularSectionResponse])
+def get_popular_zones(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_popular_zones_service(db=db)
+
+
+@zone_router.get("/zones/recommended/", response_model=List[RecommendSectionResponse])
+def get_recommended_zones(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_recommended_zones_service(db=db)

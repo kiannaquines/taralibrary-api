@@ -141,7 +141,7 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
             )
 
         return RegisterResponse(
-            message="User registered successfully, please check your email to verify your account.",
+            message="Verification code has been sent to your email.",
             user=user_success,
         )
 
@@ -158,6 +158,8 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail=f"Internal Server Error: {str(e)}",
         )
 
+async def logout_user(user: User, db: Session = Depends(get_db)):
+    pass 
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),

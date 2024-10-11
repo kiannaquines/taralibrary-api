@@ -6,17 +6,25 @@ from database.database import Base
 from services.db_services import engine
 from routes.likes_route import likes_router
 from routes.comment_route import comment_router
-from fastapi.middleware.cors import CORSMiddleware
 from routes.prediction_route import prediction_router
 from routes.device_route import device_router
 from routes.chart_routes import charts_router
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from routes.category_routes import category_router
 
 origin = ["*"]
 
 app = FastAPI(
     title="Crowd Monitoring System API",
     description="A crowd monitoring system API for managing crowd data and analyzing patterns.",
-    version="1.0.0"
+    version="1.0.0",
+)
+
+app.mount(
+    "/static",
+    StaticFiles(directory="images"),
+    name="static",
 )
 
 app.add_middleware(
@@ -37,5 +45,5 @@ app.include_router(comment_router, prefix="/api/v1", tags=["Comment"])
 app.include_router(device_router, prefix="/api/v1", tags=["Devices"])
 app.include_router(prediction_router, prefix="/api/v1", tags=["Predictions"])
 app.include_router(charts_router, prefix="/api/v1", tags=["Charts"])
-
+app.include_router(category_router, prefix="/api/v1", tags=["Category"])
 

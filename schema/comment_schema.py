@@ -10,7 +10,8 @@ class CommentCreate(BaseModel):
 class CommentViewResponse(BaseModel):
     id: int
     zone_id: int
-    user_id: int
+    first_name: str
+    last_name: str
     comment: str
     date_added: datetime
     update_date: datetime

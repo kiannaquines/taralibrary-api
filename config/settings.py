@@ -32,3 +32,7 @@ SMTP_SERVER = get_env_variable("SMTP_SERVER")
 SMTP_USERNAME = get_env_variable("SMTP_USERNAME")
 SMTP_PASSWORD = get_env_variable("SMTP_PASSWORD")
 SMTP_PORT = get_env_variable("SMTP_PORT")
+
+DIR_UPLOAD_ZONE_IMG = ZONE_UPLOAD_DIRECTORY.split('/')[1]
+DIR_UPLOAD_PROFILE_IMG = PROFILE_UPLOAD_DIRECTORY.split('/')[1]
+
