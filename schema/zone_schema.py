@@ -46,6 +46,8 @@ class RecommendSectionResponse(BaseModel):
     total_rating: float
     image_url: str
 
+class CategoryResponse(BaseModel):
+    category_name: str
 
 class AllSectionResponse(BaseModel):
     section_id: int
@@ -53,4 +55,5 @@ class AllSectionResponse(BaseModel):
     description: str
     total_rating: float
     image_url: str
+    categories: List[CategoryResponse]
 

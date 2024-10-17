@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta
 import uuid
 import os
 import shutil
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from schema.chart_schema import ChartDataResponse
-from database.database import Zones, ZoneImage, Comment, Prediction
+from database.database import Zones, ZoneImage, Comment, Prediction, Category
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import UploadFile, status
 from config.settings import ZONE_UPLOAD_DIRECTORY, DIR_UPLOAD_ZONE_IMG
@@ -22,6 +21,7 @@ from schema.zone_schema import (
     ZoneResponse,
     ZoneImageResponse,
     ZoneRemoved,
+    CategoryResponse
 )
 from schema.comment_schema import CommentViewResponse
 from statistics import mean
@@ -257,6 +257,7 @@ def get_info_zone_service(db: Session, zone_id: int) -> ZoneInfoResponse:
                         first_name=comment.user.first_name,
                         last_name=comment.user.last_name,
                         comment=comment.comment,
+                        rating=comment.rating,
                         date_added=comment.date_added,
                         update_date=comment.update_date,
                     )
@@ -394,7 +395,15 @@ def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:
             section_name=popular_zone.name,
             description=" ".join(popular_zone.description.split()[:7]),
             total_rating=round(average_rating, 2),
-            image_url=(f"/static/{DIR_UPLOAD_ZONE_IMG}/{image_url}" if image_url else None),
+            image_url=(
+                f"/static/{DIR_UPLOAD_ZONE_IMG}/{image_url}" if image_url else None
+            ),
+            categories=[
+                CategoryResponse(
+                    category_name=category.category,
+                )
+                for category in popular_zone.categories
+            ]
         )
         for popular_zone, average_rating, image_url in query_all_sections
     ]

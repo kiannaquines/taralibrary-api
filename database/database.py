@@ -21,6 +21,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String(255), unique=True, index=True)
+    profile_img = Column(String(255))
     username = Column(String(50), unique=True, index=True)
     hashed_password = Column(String(255))
     first_name = Column(String(50))
@@ -43,49 +44,10 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username})>"
 
-
-class Like(Base):
-    __tablename__ = "likes"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    zone_id = Column(Integer, ForeignKey("zones.id"), index=True)
-    date_added = Column(
-        DateTime(timezone=True),
-        index=True,
-        server_default=func.current_timestamp(),
-    )
-
-    def __repr__(self):
-        return f"<Like(id={self.id}, user_id={self.user_id}, zone_id={self.zone_id}, date_added={self.date_added})>"
-
-
-class Profile(Base):
-    __tablename__ = "profiles"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True, unique=True)
-    year = Column(String(50))
-    college = Column(String(255))
-    course = Column(String(255))
-    date_added = Column(
-        DateTime(timezone=True),
-        index=True,
-        server_default=func.current_timestamp(),
-    )
-    update_date = Column(
-        DateTime(timezone=True),
-        server_default=func.current_timestamp(),
-        onupdate=func.now(),
-    )
-
-    def __repr__(self):
-        return f"<Profile(id={self.id}, user_id={self.user_id}, year={self.year})>"
-
-
 zone_category_association = Table(
     "zone_category",
     Base.metadata,
+    Column("id", Integer, primary_key=True),
     Column("zone_id", Integer, ForeignKey("zones.id")),
     Column("category_id", Integer, ForeignKey("categories.id")),
 )

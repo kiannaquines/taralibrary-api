@@ -47,3 +47,10 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str
+
+
+class UpdateProfile(BaseModel):
+    email: EmailStr
+    first_name: str
+    last_name: str
+    user_id: int

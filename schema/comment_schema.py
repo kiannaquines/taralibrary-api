@@ -13,6 +13,7 @@ class CommentViewResponse(BaseModel):
     first_name: str
     last_name: str
     comment: str
+    rating: int
     date_added: datetime
     update_date: datetime
 

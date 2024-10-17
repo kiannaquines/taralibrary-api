@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+from config.settings import DIR_UPLOAD_PROFILE_IMG
 from schema.auth_schema import *
 from schema.user_schema import UserCreate
 from schema.user_schema import UserResponse
@@ -25,7 +26,14 @@ async def login(
 
 @auth_router.get("/users/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        username=current_user.username,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        profile_img=f'/static/{DIR_UPLOAD_PROFILE_IMG}/{current_user.profile_img}',
+    )
 
 
 @auth_router.post("/auth/register/verify", response_model=SuccessVerification)
@@ -49,3 +57,33 @@ def change_password_email(
     change_password_data: ChangePassword, db: Session = Depends(get_db)
 ):
     return change_password(db=db, change_password_data=change_password_data)
+
+
+@auth_router.put("/users/me/update", response_model=UpdateProfile)
+def update_profile_route(
+    user_id: int,
+    current_user: str = Depends(get_current_user),
+    email: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    profile_img: UploadFile = File(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        profile = UpdateProfile(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            user_id=user_id,
+        )
+
+        return update_profile_service(
+            db=db,
+            update_profile_data=profile,
+            profile_img=profile_img,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error occurred: {str(e)}",
+        )

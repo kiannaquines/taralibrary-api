@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
+import os
+import shutil
 from typing import Optional
 from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, UploadFile, status
 from jose import JWTError, jwt
-from config.settings import SECRET_KEY, ALGORITHM
+from config.settings import SECRET_KEY, ALGORITHM, PROFILE_UPLOAD_DIRECTORY
 from database.database import User, VerificationCode
 from services.db_services import get_db, oauth2_scheme, pwd_context
 from fastapi.security import OAuth2PasswordRequestForm
@@ -89,7 +91,7 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Passwords do not match",
         )
-    
+
     db_user = (
         db.query(User)
         .filter(or_(User.username == user.username, User.email == user.email))
@@ -158,8 +160,10 @@ async def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail=f"Internal Server Error: {str(e)}",
         )
 
+
 async def logout_user(user: User, db: Session = Depends(get_db)):
-    pass 
+    pass
+
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -322,3 +326,53 @@ def change_password(db: Session, change_password_data: ChangePassword):
     db.refresh(db_user)
 
     return SuccessVerification(message="Password has been chnaged successfully")
+
+
+def update_profile_service(
+    db: Session,
+    update_profile_data: UpdateProfile,
+    profile_img: UploadFile = None,
+):
+    user = db.query(User).filter(User.id == update_profile_data.user_id).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    try:
+        if profile_img:
+            filename = profile_img.filename
+            image_path = f"{PROFILE_UPLOAD_DIRECTORY}/{filename}"
+            os.makedirs(os.path.dirname(image_path), exist_ok=True)
+            with open(image_path, "wb") as buffer:
+                shutil.copyfileobj(profile_img.file, buffer)
+            user.profile_img = filename
+
+        user.email = update_profile_data.email
+        user.first_name = update_profile_data.first_name
+        user.last_name = update_profile_data.last_name
+
+        db.commit()
+        db.refresh(user)
+
+        return UpdateProfile(
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            user_id=user.id,
+        )
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
