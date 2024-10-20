@@ -3,7 +3,7 @@ from schema.prediction_schema import PredictionResponse
 from typing import List
 from sqlalchemy.orm import Session
 from services.db_services import get_db
-from database.database import User
+from database.models import User
 from services.auth_services import get_current_user
 from services.prediction_services import get_predictions, get_predictions_by_zone
 

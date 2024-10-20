@@ -4,7 +4,7 @@ from services.device_services import get_all_devices
 from services.db_services import get_db
 from sqlalchemy.orm import Session
 from typing import List
-from database.database import User
+from database.models import User
 from services.auth_services import get_current_user
 
 device_router = APIRouter()

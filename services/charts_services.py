@@ -1,7 +1,7 @@
 from schema.chart_schema import *
 from typing import List
 from sqlalchemy.orm import Session, joinedload
-from database.database import Prediction, Zones
+from database.models import Prediction, Zones
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 

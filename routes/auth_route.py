@@ -6,7 +6,7 @@ from schema.user_schema import UserResponse
 from sqlalchemy.orm import Session
 from services.auth_services import *
 from services.db_services import get_db
-from database.database import User
+from database.models import User
 from fastapi.security import OAuth2PasswordRequestForm
 
 auth_router = APIRouter()
@@ -32,7 +32,7 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         username=current_user.username,
         first_name=current_user.first_name,
         last_name=current_user.last_name,
-        profile_img=f'/static/{DIR_UPLOAD_PROFILE_IMG}/{current_user.profile_img}',
+        profile_img=f"/static/{DIR_UPLOAD_PROFILE_IMG}/{current_user.profile_img}",
     )
 
 
@@ -87,3 +87,12 @@ def update_profile_route(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error occurred: {str(e)}",
         )
+
+
+@auth_router.put("/users/me/change-password", response_model=SuccessVerification)
+def change_password_in_account(
+    change_password_data: ChangePasswordInAccount,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return change_password_in_account_service(db=db, change_password_data=change_password_data)

@@ -5,7 +5,7 @@ from starlette_admin.auth import AdminConfig, AdminUser, AuthProvider
 from sqlalchemy.orm import Session
 from starlette_admin.auth import AuthProvider
 
-from database.database import User
+from database.models import User
 from services.auth_services import verify_password
 from services.db_services import get_db
 

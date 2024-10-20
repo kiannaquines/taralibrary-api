@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Depends, status, APIRouter
-from database.database import Comment, User, Zones
+from database.models import Comment, User, Zones
 from services.db_services import get_db
 from sqlalchemy.orm import Session
 from services.auth_services import get_current_user
@@ -7,6 +7,7 @@ from schema.comment_schema import (
     CommentCreate,
     CommentViewResponse,
     CommentUpdate,
+    CommentWithUserResponse,
     DeleteComment,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,7 +37,7 @@ async def create_comment(
     )
 
 
-@comment_router.get("/comments/", response_model=List[CommentViewResponse])
+@comment_router.get("/comments/", response_model=List[CommentWithUserResponse])
 def view_comments(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):

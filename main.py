@@ -3,7 +3,7 @@ from markupsafe import Markup
 from config.settings import SECRET_KEY
 from routes.auth_route import auth_router
 from routes.zone_route import zone_router
-from database.database import (
+from database.models import (
     Base,
     User,
     Zones,
@@ -17,6 +17,8 @@ from database.database import (
 from services.db_services import engine, get_db
 from routes.comment_route import comment_router
 from routes.prediction_route import prediction_router
+from routes.users_route import users_router
+from routes.websocket_routes import websocket_router
 from routes.device_route import device_router
 from routes.chart_routes import charts_router
 from fastapi.staticfiles import StaticFiles
@@ -40,7 +42,7 @@ app = FastAPI(
 
 app.mount(
     "/static",
-    app=StaticFiles(directory="images", packages=["starlette_admin"]),
+    app=StaticFiles(directory="static", packages=["starlette_admin"]),
     name="static",
 )
 
@@ -83,6 +85,7 @@ admin.add_view(
 )
 admin.mount_to(app)
 
+app.include_router(websocket_router, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(zone_router, prefix="/api/v1", tags=["Zones"])
 app.include_router(comment_router, prefix="/api/v1", tags=["Comment"])
@@ -90,3 +93,5 @@ app.include_router(device_router, prefix="/api/v1", tags=["Devices"])
 app.include_router(prediction_router, prefix="/api/v1", tags=["Predictions"])
 app.include_router(charts_router, prefix="/api/v1", tags=["Charts"])
 app.include_router(category_router, prefix="/api/v1", tags=["Category"])
+app.include_router(users_router, prefix="/api/v1", tags=["Users"])
+

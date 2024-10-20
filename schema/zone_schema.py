@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 from typing import List
 from schema.comment_schema import CommentViewResponse
@@ -56,4 +57,14 @@ class AllSectionResponse(BaseModel):
     total_rating: float
     image_url: str
     categories: List[CategoryResponse]
+
+
+class AllSectionWebApi(BaseModel):
+    id: int
+    name: str
+    description: str
+    image_url: List[ZoneImageResponse]
+    categories: List[CategoryResponse]
+    date_added: datetime
+    update_date: datetime
 

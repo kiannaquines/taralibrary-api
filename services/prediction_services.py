@@ -3,7 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from typing import List
 from schema.prediction_schema import PredictionResponse
-from database.database import Prediction
+from database.models import Prediction
 
 
 def get_predictions(db: Session) -> List[PredictionResponse]:
@@ -20,7 +20,7 @@ def get_predictions(db: Session) -> List[PredictionResponse]:
         return [
             PredictionResponse(
                 id=prediction.id,
-                zone_id=prediction.zone_id,
+                zone_name=prediction.zone.name,
                 estimated_count=prediction.estimated_count,
                 score=prediction.score,
                 first_seen=prediction.first_seen,

@@ -3,7 +3,7 @@ from datetime import datetime
 
 class PredictionResponse(BaseModel):
     id: int
-    zone_id: int
+    zone_name: str
     estimated_count: int
     score: PositiveFloat
     first_seen: datetime

@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr
 
-
 class VerificationRequest(BaseModel):
     user_id: int
     code: str
@@ -8,6 +7,7 @@ class VerificationRequest(BaseModel):
 
 class SuccessVerification(BaseModel):
     message: str
+    user_id: int
 
 
 class SendVerificationSuccess(BaseModel):
@@ -23,8 +23,13 @@ class ChangePassword(BaseModel):
     new_password: str
     confirm_password: str
     user_id: int
-    code: str
 
+
+class ChangePasswordInAccount(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_password: str
+    user_id: int
 
 class RegisterSuccess(BaseModel):
     id: int

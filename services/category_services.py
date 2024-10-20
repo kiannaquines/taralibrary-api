@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.database import Category, User
+from database.models import Category, User
 from schema.category_schema import *
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
@@ -70,118 +70,52 @@ def get_categories(db: Session) -> List[CategoryResponse]:
         )
 
 
-# def get_comment(db: Session, comment_id: int) -> CommentViewResponse:
+def category_remove(db: Session, category_id: int) -> RemoveCategoryResponse:
+    category = db.query(Category).filter(Category.id == category_id).first()
 
-#     response = db.query(Comment).filter(Comment.id == comment_id).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )
 
-#     if not response:
+    try:
+        db.delete(category)
+        db.commit()
+        return RemoveCategoryResponse(message="Category deleted successfully")
 
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Comment not found",
-#         )
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete category: {str(e)}",
+        )
 
-#     try:
-
-#         return CommentViewResponse(
-#             id=response.id,
-#             zone_id=response.zone_id,
-#             user_id=response.user_id,
-#             comment=response.comment,
-#             date_added=response.date_added,
-#             update_date=response.update_date,
-#         )
-
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to fetch comment: {str(e)}",
-#         )
-
-#     except SQLAlchemyError as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to fetch comment: ss{str(e)}",
-#         )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete category",
+        )
 
 
-# def edit_comment(
-#     db: Session,
-#     comment_id: int,
-#     update_data: CommentUpdate,
-# ) -> CommentViewResponse:
+def category_update(
+    db: Session, category_id: int, category_data: CategoryCreate
+) -> CategoryResponse:
+    category = db.query(Category).filter(Category.id == category_id).first()
 
-#     comment_db = db.query(Comment).filter(Comment.id == comment_id).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+        )
 
-#     if not comment_db:
+    category.category = category_data.category_name
+    db.commit()
+    db.refresh(category)
 
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Comment not found",
-#         )
-
-#     try:
-
-#         comment_db.comment = update_data.comment
-
-#         db.commit()
-#         db.refresh(comment_db)
-
-#         return CommentViewResponse(
-#             id=comment_db.id,
-#             zone_id=comment_db.zone_id,
-#             user_id=comment_db.user_id,
-#             comment=comment_db.comment,
-#             date_added=comment_db.date_added,
-#             update_date=comment_db.update_date,
-#         )
-
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to update comment: {str(e)}",
-#         )
-
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to update comment: {str(e)}",
-#         )
-
-
-# def delete_comment(db: Session, comment_id: int) -> DeleteComment:
-
-#     check_comment = db.query(Comment).filter(Comment.id == comment_id).first()
-
-#     if not check_comment:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Comment not found",
-#         )
-
-#     try:
-#         db.query(Comment).filter(Comment.id == comment_id).delete(
-#             synchronize_session=False
-#         )
-#         db.commit()
-
-#         return DeleteComment(
-#             message="Comment deleted successfully",
-#             is_deleted=True,
-#         )
-
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to delete comment: {str(e)}",
-#         )
-
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to delete comment: {str(e)}",
-#         )
+    return CategoryResponse(
+        category_id=category.id,
+        category_name=category.category,
+        date_added=category.date_added,
+        update_date=category.update_date,
+    )

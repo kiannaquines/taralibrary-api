@@ -9,3 +9,7 @@ class CategoryResponse(BaseModel):
     category_name: str
     date_added: datetime
     update_date: datetime
+
+
+class RemoveCategoryResponse(BaseModel):
+    message: str

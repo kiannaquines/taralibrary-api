@@ -31,6 +31,17 @@ class CommentUpdate(BaseModel):
     comment: str
 
 
+class CommentWithUserResponse(BaseModel):
+    id: int
+    full_name: str
+    comment: str
+    rating: int
+    date_added: datetime
+    update_date: datetime
+
+    class Config:
+        from_attributes = True
+
 class DeleteComment(BaseModel):
     message: str
     is_deleted: bool

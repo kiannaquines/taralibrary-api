@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, UploadFile, status
 from jose import JWTError, jwt
 from config.settings import SECRET_KEY, ALGORITHM, PROFILE_UPLOAD_DIRECTORY
-from database.database import User, VerificationCode
+from database.models import User, VerificationCode
 from services.db_services import get_db, oauth2_scheme, pwd_context
 from fastapi.security import OAuth2PasswordRequestForm
 from config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
@@ -229,23 +229,24 @@ def verify_account_code(
         VerificationCode.code == verification_data.code
     )
 
+    if not verify_user.first() or not used_code.first():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verification code or user not found",
+        )
+        
     if used_code.first().is_used:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Verification code has already been used",
         )
 
-    if not verify_user.first() or not used_code.first():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Verification code or user not found",
-        )
 
     verify_user.first().is_verified = True
     used_code.first().is_used = True
     db.commit()
 
-    return SuccessVerification(message="You have successfully verified your account")
+    return SuccessVerification(message="You have successfully verified your account", user_id=verify_user.first().id)
 
 
 def reset_password(
@@ -278,38 +279,15 @@ def reset_password(
             detail="Failed to send password reset email",
         )
 
-    return SuccessVerification(message="Password reset request sent successfully")
+    return SuccessVerification(message="Password reset request sent successfully", user_id=db_user.id)
 
 
 def change_password(db: Session, change_password_data: ChangePassword):
-
-    if len(change_password_data.code) > 6 or len(change_password_data.code) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification code should be a 6-digit number",
-        )
 
     if change_password_data.new_password != change_password_data.confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password and confirm password do not match",
-        )
-
-    db_code = (
-        db.query(VerificationCode)
-        .filter(
-            and_(
-                VerificationCode.code == change_password_data.code,
-                VerificationCode.is_used == False,
-            )
-        )
-        .first()
-    )
-
-    if not db_code:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Verification code or user not found",
         )
 
     db_user = db.query(User).filter(User.id == change_password_data.user_id).first()
@@ -321,11 +299,10 @@ def change_password(db: Session, change_password_data: ChangePassword):
         )
 
     db_user.hashed_password = get_password_hash(change_password_data.new_password)
-    db_code.is_used = True
     db.commit()
     db.refresh(db_user)
 
-    return SuccessVerification(message="Password has been chnaged successfully")
+    return SuccessVerification(message="Password has been changed successfully", user_id=db_user.id)
 
 
 def update_profile_service(
@@ -376,3 +353,33 @@ def update_profile_service(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
         )
+    
+def change_password_in_account_service(db: Session, change_password_data: ChangePasswordInAccount):
+
+    if change_password_data.new_password != change_password_data.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password and confirm password do not match",
+        )
+
+    db_user = db.query(User).filter(User.id == change_password_data.user_id).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    if not verify_password(change_password_data.old_password, db_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Old password is incorrect",
+        )
+    
+
+    db_user.hashed_password = get_password_hash(change_password_data.confirm_password)
+    db.commit()
+    db.refresh(db_user)
+
+    return SuccessVerification(message="Password has been changed successfully", user_id=db_user.id)
+

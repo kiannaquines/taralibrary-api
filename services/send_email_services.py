@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import random
 from config.settings import SMTP_USERNAME, SMTP_PASSWORD, SMTP_SERVER, SMTP_PORT
-from database.database import VerificationCode
+from database.models import VerificationCode
 from sqlalchemy.orm import Session
 
 def verification_code_generator():

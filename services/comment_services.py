@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
-from database.database import Comment, User, Zones
+from database.models import Comment, User, Zones
 from schema.comment_schema import (
     CommentCreate,
     CommentViewResponse,
     CommentUpdate,
+    CommentWithUserResponse,
     DeleteComment,
 )
 from typing import List
@@ -60,7 +61,7 @@ def add_comment(
             detail="Something went wrong",
         )
 
-def get_comments(db: Session) -> List[CommentViewResponse]:
+def get_comments(db: Session) -> List[CommentWithUserResponse]:
 
     response = db.query(Comment).all()
 
@@ -74,11 +75,11 @@ def get_comments(db: Session) -> List[CommentViewResponse]:
     try:
 
         return [
-            CommentViewResponse(
+            CommentWithUserResponse(
                 id=comment.id,
-                zone_id=comment.zone_id,
-                user_id=comment.user_id,
+                full_name=f'{comment.user.first_name} {comment.user.last_name}',
                 comment=comment.comment,
+                rating=comment.rating,
                 date_added=comment.date_added,
                 update_date=comment.update_date,
             )
@@ -156,8 +157,10 @@ def edit_comment(
         return CommentViewResponse(
             id=comment_db.id,
             zone_id=comment_db.zone_id,
-            user_id=comment_db.user_id,
+            first_name=comment_db.user.first_name,
+            last_name=comment_db.user.last_name,
             comment=comment_db.comment,
+            rating=comment_db.rating,
             date_added=comment_db.date_added,
             update_date=comment_db.update_date,
         )

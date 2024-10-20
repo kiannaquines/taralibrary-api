@@ -4,6 +4,7 @@ from services.db_services import get_db
 from services.zone_services import (
     create_zone,
     get_all_section_section_filters,
+    get_all_zones,
     get_popular_zones_service,
     get_recommended_zones_service,
     get_zone,
@@ -12,10 +13,10 @@ from services.zone_services import (
     delete_zone,
     get_info_zone_service,
 )
-from schema.zone_schema import AllSectionResponse, RecommendSectionResponse, ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse, PopularSectionResponse
+from schema.zone_schema import AllSectionResponse, AllSectionWebApi, RecommendSectionResponse, ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse, PopularSectionResponse
 from typing import List, Optional
 from fastapi.exceptions import HTTPException
-from database.database import User
+from database.models import User
 from services.auth_services import get_current_user
 
 zone_router = APIRouter()
@@ -114,3 +115,10 @@ def get_recommended_zones(
     db: Session = Depends(get_db),
 ):
     return get_recommended_zones_service(db=db)
+
+@zone_router.get("/web/zones/all", response_model=List[AllSectionWebApi])
+async def view_zones(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return get_all_zones(db=db)

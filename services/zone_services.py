@@ -4,7 +4,7 @@ import shutil
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from schema.chart_schema import ChartDataResponse
-from database.database import Zones, ZoneImage, Comment, Prediction, Category
+from database.models import Zones, ZoneImage, Comment, Prediction, Category
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import UploadFile, status
 from config.settings import ZONE_UPLOAD_DIRECTORY, DIR_UPLOAD_ZONE_IMG
@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
 from schema.zone_schema import (
     AllSectionResponse,
+    AllSectionWebApi,
     ZoneInfoResponse,
     PopularSectionResponse,
     RecommendSectionResponse,
@@ -208,7 +209,18 @@ def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
         db.commit()
 
         for image in db_zone.images:
-            os.remove(image.image_url)
+            image_path = os.path.join(ZONE_UPLOAD_DIRECTORY, image.image_url)
+            if os.path.exists(image_path):
+                try:
+                    os.remove(image_path)
+                except OSError as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error occurred while deleting image: {str(e)}"
+                )
+                
             db.delete(image)
             db.commit()
 
@@ -407,3 +419,43 @@ def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:
         )
         for popular_zone, average_rating, image_url in query_all_sections
     ]
+
+
+def get_all_zones(db: Session) -> List[AllSectionWebApi]:
+    zones = (
+        db.query(Zones)
+        .options(joinedload(Zones.images))
+        .all()
+    )
+
+    if not zones:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No zones found"
+        )
+
+    zone_responses = []
+    for zone in zones:
+        zone_responses.append(
+            AllSectionWebApi(
+                id=zone.id,
+                name=zone.name,
+                description=zone.description,
+                image_url=[
+                    ZoneImageResponse(
+                        id=image.id,
+                        image_url=f"/static/{DIR_UPLOAD_ZONE_IMG}/{image.image_url}",
+                    )
+                    for image in zone.images
+                ],
+                categories=[
+                    CategoryResponse(
+                        category_name=category.category,
+                    )
+                    for category in zone.categories
+                ],
+                date_added=zone.date_added,
+                update_date=zone.update_date
+            )
+        )
+
+    return zone_responses
