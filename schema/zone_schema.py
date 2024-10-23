@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from schema.comment_schema import CommentViewResponse
 from schema.chart_schema import ChartDataResponse
 
@@ -67,4 +67,12 @@ class AllSectionWebApi(BaseModel):
     categories: List[CategoryResponse]
     date_added: datetime
     update_date: datetime
+
+class ZoneCategoryUpdate(BaseModel):
+    category_id: int
+
+class ZoneUpdate(BaseModel):
+    name: str
+    description: str
+    categories: Optional[List[ZoneCategoryUpdate]] = []
 

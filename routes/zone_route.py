@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, File, UploadFile, Form, status
 from sqlalchemy.orm import Session
 from services.db_services import get_db
@@ -13,7 +14,18 @@ from services.zone_services import (
     delete_zone,
     get_info_zone_service,
 )
-from schema.zone_schema import AllSectionResponse, AllSectionWebApi, RecommendSectionResponse, ZoneResponse, ZoneCreate, ZoneRemoved, ZoneInfoResponse, PopularSectionResponse
+from schema.zone_schema import (
+    AllSectionResponse,
+    AllSectionWebApi,
+    RecommendSectionResponse,
+    ZoneCategoryUpdate,
+    ZoneResponse,
+    ZoneCreate,
+    ZoneRemoved,
+    ZoneInfoResponse,
+    PopularSectionResponse,
+    ZoneUpdate,
+)
 from typing import List, Optional
 from fastapi.exceptions import HTTPException
 from database.models import User
@@ -71,14 +83,34 @@ async def edit_zone(
     zone_id: int,
     name: str = Form(...),
     description: str = Form(...),
+    categories_json: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None),
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    zone = ZoneCreate(name=name, description=description)
-    db_zone = update_zone(db=db, zone_id=zone_id, zone=zone, files=files)
+    try:
+        categories = None
+        if categories_json:
+            category_ids = [
+                int(id.strip()) for id in categories_json.split(",") if id.strip()
+            ]
+            categories = [
+                ZoneCategoryUpdate(category_id=cat_id) for cat_id in category_ids
+            ]
 
-    return db_zone
+        zone_update_data = ZoneUpdate(
+            name=name, description=description, categories=categories
+        )
+
+        db_zone = update_zone(
+            db=db, zone_id=zone_id, zone=zone_update_data, files=files
+        )
+        return db_zone
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category IDs must be valid integers",
+        )
 
 
 @zone_router.delete("/zones/{zone_id}", response_model=ZoneRemoved)
@@ -100,7 +132,6 @@ def get_info_zone(
     return get_info_zone_service(db=db, zone_id=zone_id)
 
 
-
 @zone_router.get("/zones/popular/", response_model=List[PopularSectionResponse])
 def get_popular_zones(
     current_user: User = Depends(get_current_user),
@@ -115,6 +146,7 @@ def get_recommended_zones(
     db: Session = Depends(get_db),
 ):
     return get_recommended_zones_service(db=db)
+
 
 @zone_router.get("/web/zones/all", response_model=List[AllSectionWebApi])
 async def view_zones(

@@ -22,11 +22,12 @@ from schema.zone_schema import (
     ZoneResponse,
     ZoneImageResponse,
     ZoneRemoved,
-    CategoryResponse
+    CategoryResponse,
+    ZoneUpdate,
 )
 from schema.comment_schema import CommentViewResponse
 from statistics import mean
-from sqlalchemy import func
+from sqlalchemy import and_, func
 
 
 def create_zone(
@@ -139,39 +140,99 @@ def get_zone(db: Session, zone_id: int) -> ZoneResponse:
 def update_zone(
     db: Session,
     zone_id: int,
-    zone: ZoneCreate,
+    zone: ZoneUpdate,
     files: Optional[List[UploadFile]] = None,
 ) -> ZoneResponse:
-    db_zone = db.query(Zones).filter(Zones.id == zone_id).first()
 
+    from database.models import zone_category_association
+
+    db_zone = db.query(Zones).filter(Zones.id == zone_id).first()
     if not db_zone:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found"
         )
 
     try:
-        for key, value in zone.dict(exclude_unset=True).items():
-            setattr(db_zone, key, value)
+
+        db.begin_nested()
+
+        if zone.name is not None:
+            db_zone.name = zone.name
+        if zone.description is not None:
+            db_zone.description = zone.description
+
+        if zone.categories is not None:
+
+            existing_category_ids = {
+                assoc.category_id
+                for assoc in db.query(zone_category_association)
+                .filter(zone_category_association.c.zone_id == zone_id)
+                .all()
+            }
+
+            new_category_ids = {cat.category_id for cat in zone.categories}
+
+            for existing_id in existing_category_ids:
+                if existing_id not in new_category_ids:
+                    db.query(zone_category_association).filter(
+                        zone_category_association.c.zone_id == zone_id,
+                        zone_category_association.c.category_id == existing_id,
+                    ).delete()
+
+            for category_data in zone.categories:
+
+                if category_data.category_id in existing_category_ids:
+                    continue
+
+                category = (
+                    db.query(Category)
+                    .filter(Category.id == category_data.category_id)
+                    .first()
+                )
+                if not category:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Category with id {category_data.category_id} not found",
+                    )
+
+                new_association = zone_category_association.insert().values(
+                    zone_id=zone_id, category_id=category_data.category_id
+                )
+
+                db.execute(new_association)
 
         db.commit()
-        db.refresh(db_zone)
 
         if files:
-            image_responses = []
             for file in files:
-                unique_filename = f"{uuid.uuid4()}_{file.filename}"
-                file_location = os.path.join(ZONE_UPLOAD_DIRECTORY, unique_filename)
+                try:
+                    if not file.content_type.startswith("image/"):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"File {file.filename} is not an image",
+                        )
 
-                with open(file_location, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
+                    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+                    file_location = os.path.join(ZONE_UPLOAD_DIRECTORY, unique_filename)
 
-                zone_image = ZoneImage(image_url=unique_filename, zone_id=db_zone.id)
-                db.add(zone_image)
-                db.commit()
+                    os.makedirs(ZONE_UPLOAD_DIRECTORY, exist_ok=True)
 
-                image_responses.append(
-                    ZoneImageResponse(id=zone_image.id, image_url=zone_image.image_url)
-                )
+                    with open(file_location, "wb+") as buffer:
+                        shutil.copyfileobj(file.file, buffer)
+
+                    zone_image = ZoneImage(
+                        image_url=unique_filename, zone_id=db_zone.id
+                    )
+                    db.add(zone_image)
+                    db.flush()
+
+                except Exception as e:
+                    print(f"Error processing file {file.filename}: {str(e)}")
+                    continue
+
+            db.commit()
+
+        db.refresh(db_zone)
 
         return ZoneResponse(
             id=db_zone.id,
@@ -188,11 +249,19 @@ def update_zone(
 
     except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+    except HTTPException as he:
+        db.rollback()
+        raise he
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Something went wrong: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {str(e)}",
+        )
 
 
 def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
@@ -214,13 +283,15 @@ def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
                 try:
                     os.remove(image_path)
                 except OSError as e:
-                    raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+                    raise HTTPException(
+                        status_code=500, detail=f"Failed to delete image: {str(e)}"
+                    )
             else:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error occurred while deleting image: {str(e)}"
+                    detail=f"Error occurred while deleting image: {str(e)}",
                 )
-                
+
             db.delete(image)
             db.commit()
 
@@ -415,18 +486,14 @@ def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:
                     category_name=category.category,
                 )
                 for category in popular_zone.categories
-            ]
+            ],
         )
         for popular_zone, average_rating, image_url in query_all_sections
     ]
 
 
 def get_all_zones(db: Session) -> List[AllSectionWebApi]:
-    zones = (
-        db.query(Zones)
-        .options(joinedload(Zones.images))
-        .all()
-    )
+    zones = db.query(Zones).options(joinedload(Zones.images)).all()
 
     if not zones:
         raise HTTPException(
@@ -454,7 +521,7 @@ def get_all_zones(db: Session) -> List[AllSectionWebApi]:
                     for category in zone.categories
                 ],
                 date_added=zone.date_added,
-                update_date=zone.update_date
+                update_date=zone.update_date,
             )
         )
 

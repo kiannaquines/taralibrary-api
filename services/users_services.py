@@ -1,15 +1,25 @@
+import os
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
+from config.settings import PROFILE_UPLOAD_DIRECTORY
 from database.models import User
-from fastapi import HTTPException, status
+from fastapi import File, HTTPException, UploadFile, status
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
 from services.auth_services import get_password_hash
-from schema.user_schema import AddUserResponse, UserCreate, UserDeleteResponse, UserUpdate, UserUpdateResponse, UsersListResponse
-from sqlalchemy import or_
+from schema.user_schema import (
+    AddUserResponse,
+    UserCreate,
+    UserDeleteResponse,
+    UserUpdate,
+    UserUpdateResponse,
+    UsersListResponse,
+)
+
 
 def add_user(db: Session, user: UserCreate) -> AddUserResponse:
-    
-    if user.password!= user.confirm_password:
+
+    if user.password != user.confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Passwords do not match",
@@ -23,13 +33,13 @@ def add_user(db: Session, user: UserCreate) -> AddUserResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists",
         )
-    
+
     if db_check_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already exists",
         )
-    
+
     db_user = User(
         username=user.username,
         email=user.email,
@@ -113,28 +123,48 @@ def delete_user(db: Session, userId: int) -> UserDeleteResponse:
         )
 
 
-def update_user(db: Session, user_id: int, user_detail: UserUpdate) -> UserUpdateResponse:
-    response = db.query(User).filter(User.id == user_id).first()
+def update_user(
+    db: Session,
+    user_id: int,
+    username: str,
+    email: EmailStr,
+    first_name: str,
+    last_name: str,
+    is_superuser: bool,
+    is_verified: bool,
+    is_staff: bool,
+    is_active: bool,
+    profile_img: UploadFile = File(None),
+) -> UserUpdateResponse:
 
-    if not response:
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No users found",
+            detail="User not found",
         )
 
     try:
+        user.username = username
+        user.email = email
+        user.first_name = first_name
+        user.last_name = last_name
+        user.is_superuser = is_superuser
+        user.is_verified = is_verified
+        user.is_staff = is_staff
+        user.is_active = is_active
 
-        if user_detail.username:
-            response.username = user_detail.username
-        if user_detail.email:
-            response.email = user_detail.email
-        if user_detail.first_name:
-            response.first_name = user_detail.first_name
-        if user_detail.last_name:
-            response.last_name = user_detail.last_name
+        if profile_img:
+            file_location = os.path.join(PROFILE_UPLOAD_DIRECTORY, profile_img.filename)
+
+            with open(file_location, "wb") as buffer:
+                buffer.write(profile_img.file.read())
+            
+            user.profile_img = profile_img.filename
 
         db.commit()
-        db.refresh(response)
+        db.refresh(user)
 
         return UserUpdateResponse(
             message="User updated successfully",

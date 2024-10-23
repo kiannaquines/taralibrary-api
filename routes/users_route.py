@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends
+from typing import List, Optional
+from fastapi import APIRouter, Depends, UploadFile, File
 from config.settings import DIR_UPLOAD_PROFILE_IMG
 from schema.auth_schema import *
 from schema.user_schema import AddUserResponse, UserDeleteResponse, UserResponse, UserUpdate, UserUpdateResponse, UsersListResponse
@@ -40,8 +40,28 @@ def users_remove(
 @users_router.put("/users/edit", response_model=UserUpdateResponse)
 def update_user_account(
     user_id: int,
-    user_detail: UserUpdate,
+    username: str,
+    email: EmailStr,
+    first_name: str,
+    last_name: str,
+    is_superuser: bool,
+    is_verified: bool,
+    is_staff: bool,
+    is_active: bool,
     db: Session = Depends(get_db),
+    profile_img: UploadFile = File(None),
     current_user: User = Depends(get_current_user),
-) -> UserUpdateResponse:
-    return update_user(db=db, user_id=user_id, user_detail=user_detail)
+):
+    return update_user(
+        db=db,
+        user_id=user_id,
+        username=username,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        is_superuser=is_superuser,
+        is_verified=is_verified,
+        is_staff=is_staff,
+        is_active=is_active,
+        profile_img=profile_img,
+    )

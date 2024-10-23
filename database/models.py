@@ -28,6 +28,8 @@ class User(Base):
     last_name = Column(String(50))
     is_verified = Column(Boolean, default=False)
     is_superuser = Column(Boolean, default=False)
+    is_staff = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
     register_date = Column(
         DateTime(timezone=True),
         index=True,

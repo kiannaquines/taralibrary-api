@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
 from markupsafe import Markup
 from config.settings import SECRET_KEY
 from routes.auth_route import auth_router
@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette_admin.contrib.sqla import Admin
 from starlette.middleware.sessions import SessionMiddleware
 from provider.auth_provider import CustomAuthProvider
-
+from routes.generate_route import generate_report_router
 Base.metadata.create_all(bind=engine)
 
 origins = ["*"]
@@ -62,14 +62,18 @@ class ZoneImageModelView(ModelView):
     def format_value(self, model, attribute):
         if attribute == "image_url" and getattr(model, attribute):
             image_url = getattr(model, attribute)
-            return Markup(f'<img src="/static/zone/{image_url}" style="max-width: 100px; max-height: 100px;">')
+            return Markup(
+                f'<img src="/static/zone/{image_url}" style="max-width: 100px; max-height: 100px;">'
+            )
         return super().format_value(model, attribute)
-    
+
     def scaffold_list_columns(self):
-        return ['id', 'image_preview', 'image_url', 'zone_id']
-    
+        return ["id", "image_preview", "image_url", "zone_id"]
+
     def image_preview(self, model):
-        return Markup(f'<img src="/static/zone/{model.image_url}" style="max-width: 100px; max-height: 100px;">')
+        return Markup(
+            f'<img src="/static/zone/{model.image_url}" style="max-width: 100px; max-height: 100px;">'
+        )
 
 
 admin = Admin(engine, title="Crowd Monitoring Admin", auth_provider=auth_provider)
@@ -85,6 +89,7 @@ admin.add_view(
 )
 admin.mount_to(app)
 
+app.include_router(generate_report_router, prefix="/api/v1", tags=["Reports"])
 app.include_router(websocket_router, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(zone_router, prefix="/api/v1", tags=["Zones"])
@@ -94,4 +99,3 @@ app.include_router(prediction_router, prefix="/api/v1", tags=["Predictions"])
 app.include_router(charts_router, prefix="/api/v1", tags=["Charts"])
 app.include_router(category_router, prefix="/api/v1", tags=["Category"])
 app.include_router(users_router, prefix="/api/v1", tags=["Users"])
-
