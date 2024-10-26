@@ -1,5 +1,5 @@
-from fastapi import HTTPException, Depends, status, APIRouter
-from database.models import Comment, User, Zones
+from fastapi import Depends, APIRouter
+from database.models import User
 from services.db_services import get_db
 from sqlalchemy.orm import Session
 from services.auth_services import get_current_user
@@ -10,7 +10,6 @@ from schema.comment_schema import (
     CommentWithUserResponse,
     DeleteComment,
 )
-from sqlalchemy.exc import SQLAlchemyError
 from services.comment_services import (
     add_comment,
     get_comments,

@@ -13,7 +13,7 @@ from config.settings import ACCESS_TOKEN_EXPIRE_MINUTES
 from schema.auth_schema import *
 from schema.user_schema import UserCreate
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import or_, and_
+from sqlalchemy import or_
 from services.send_email_services import (
     send_email,
     account_verification_email_body,

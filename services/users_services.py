@@ -11,7 +11,6 @@ from schema.user_schema import (
     AddUserResponse,
     UserCreate,
     UserDeleteResponse,
-    UserUpdate,
     UserUpdateResponse,
     UsersListResponse,
 )

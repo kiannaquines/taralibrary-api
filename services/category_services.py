@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import Category, User
+from database.models import Category
 from schema.category_schema import *
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError

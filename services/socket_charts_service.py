@@ -1,12 +1,6 @@
 import asyncio
-from fastapi import WebSocket, Depends, WebSocketDisconnect, APIRouter
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from database.models import Device, Prediction
-from services.db_services import get_db
-from typing import Dict, List, Any
-from datetime import datetime, date, time
-from sqlalchemy import func, and_, select
+from fastapi import WebSocket
+from typing import List
 
 
 class ConnectionManager:

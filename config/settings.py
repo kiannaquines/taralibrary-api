@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-
+from urllib.parse import quote
 load_dotenv()
 
 
@@ -13,7 +13,7 @@ def get_env_variable(var_name, default=None):
 
 db_name = get_env_variable("DATABASE_NAME")
 db_user = get_env_variable("DATABASE_USERNAME")
-db_password = get_env_variable("DATABASE_PASSWORD")
+db_password = quote(get_env_variable("DATABASE_PASSWORD"))
 db_host = get_env_variable("DATABASE_HOST")
 
 try:

@@ -27,7 +27,7 @@ from schema.zone_schema import (
 )
 from schema.comment_schema import CommentViewResponse
 from statistics import mean
-from sqlalchemy import and_, func
+from sqlalchemy import func
 
 
 def create_zone(
@@ -392,7 +392,9 @@ def get_info_zone_service(db: Session, zone_id: int) -> ZoneInfoResponse:
 def get_popular_zones_service(db: Session) -> List[PopularSectionResponse]:
     query_popular_zones = (
         db.query(
-            Zones, func.avg(Comment.rating).label("average_rating"), ZoneImage.image_url
+            Zones,
+            func.avg(Comment.rating).label("average_rating"),
+            func.min(ZoneImage.image_url).label("image_url")
         )
         .outerjoin(Comment)
         .outerjoin(ZoneImage)
@@ -432,7 +434,7 @@ def get_recommended_zones_service(db: Session) -> List[RecommendSectionResponse]
         db.query(
             Zones,
             func.coalesce(func.avg(Comment.rating), 0.0).label("average_rating"),
-            ZoneImage.image_url,
+            func.min(ZoneImage.image_url).label("image_url"),
             func.count(Prediction.estimated_count).label("estimated_count"),
         )
         .outerjoin(Comment)
@@ -464,7 +466,7 @@ def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:
         db.query(
             Zones,
             func.coalesce(func.avg(Comment.rating), 0.0).label("average_rating"),
-            ZoneImage.image_url,
+            func.min(ZoneImage.image_url).label('image_url'),
         )
         .outerjoin(Comment)
         .outerjoin(ZoneImage)

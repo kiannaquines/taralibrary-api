@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File
-from config.settings import DIR_UPLOAD_PROFILE_IMG
 from schema.auth_schema import *
-from schema.user_schema import AddUserResponse, UserDeleteResponse, UserResponse, UserUpdate, UserUpdateResponse, UsersListResponse
+from schema.user_schema import (
+    AddUserResponse, UserDeleteResponse, UserUpdateResponse, UsersListResponse
+)
 from sqlalchemy.orm import Session
 from services.auth_services import *
 from services.db_services import get_db
