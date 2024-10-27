@@ -70,6 +70,94 @@ async def get_count_section(
     return DetailsCount(count=db_count, total_type="Total Sections")
 
 
+@websocket_router.get('/visitors/count/today/', response_model=VisitorsCount)
+async def get_today_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
+    query =  db.query(Prediction,func.coalesce(func.sum(Prediction.estimated_count),0.0).label('total_count')).filter(Prediction.zone_id == section_id).first()
+
+    return VisitorsCount(
+        count=query.total_count if query else 0,
+        analysis_type='Today Visitors'
+    )
+
+@websocket_router.get('/visitors/count/last-day/', response_model=VisitorsCount)
+async def get_last_day_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
+    yesterday_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) - timedelta(days=1)
+    yesterday_end = yesterday_start + timedelta(days=1)
+
+    count = (
+        db.query(func.sum(Prediction.estimated_count))
+        .filter(
+            and_(
+                Prediction.first_seen.between(yesterday_start, yesterday_end),
+                Prediction.zone_id == section_id,
+            ),
+        )
+        .scalar()
+        or 0
+    )
+
+    return VisitorsCount(count=count, analysis_type="Last Day")
+
+@websocket_router.get('/visitors/count/last-week/', response_model=VisitorsCount)
+async def get_last_week_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
+    week_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) - timedelta(days=7)
+    today_end = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    count = (
+        db.query(func.sum(Prediction.estimated_count))
+        .filter(
+            or_(
+                Prediction.first_seen.between(week_start, today_end),
+                Prediction.last_seen.between(week_start, today_end),
+                and_(
+                    Prediction.first_seen <= week_start,
+                    Prediction.last_seen >= today_end,
+                    Prediction.zone_id == section_id,
+                ),
+            )
+        )
+        .scalar()
+        or 0
+    )
+
+    return VisitorsCount(count=count, analysis_type="Last Week")
+
+
+@websocket_router.get('/visitors/count/last-month/', response_model=VisitorsCount)
+async def get_last_month_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
+    month_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ) - timedelta(days=30)
+    today_end = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    count = (
+        db.query(func.sum(Prediction.estimated_count))
+        .filter(
+            or_(
+                Prediction.first_seen.between(month_start, today_end),
+                Prediction.last_seen.between(month_start, today_end),
+                and_(
+                    Prediction.first_seen <= month_start,
+                    Prediction.last_seen >= today_end,
+                    Prediction.zone_id == section_id,
+                ),
+            )
+        )
+        .scalar()
+        or 0
+    )
+
+    return VisitorsCount(count=count, analysis_type="Last Month")
+
+
 @websocket_router.get("/visitors/count/today", response_model=VisitorsCount)
 async def get_visitors_count_today(
     db: Session = Depends(get_db),
