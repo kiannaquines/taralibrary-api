@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -14,8 +15,9 @@ class CommentViewResponse(BaseModel):
     last_name: str
     comment: str
     rating: int
-    date_added: datetime
-    update_date: datetime
+    date_added: str
+    update_date: str
+    profile_img: Optional[str]
 
     class Config:
         from_attributes = True

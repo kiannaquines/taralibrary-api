@@ -16,7 +16,7 @@ import base64
 import os
 
 sns.set_style("whitegrid")
-plt.rcParams["font.family"] = "Arial"
+plt.rcParams["font.family"] = "DejaVu Sans"
 
 generate_report_router = APIRouter(tags=["Reports"])
 
@@ -55,7 +55,7 @@ def generate_feedback_chart(feedback_data: List[Dict[str, Any]]) -> str:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     bar_plot = sns.barplot(
-        data=df, x="zone_name", y="average_rating", palette="Blues", ax=ax
+        data=df, x="zone_name", y="average_rating", hue="zone_name", palette="Blues", ax=ax, legend=False,
     )
 
     plt.title("Average Feedback Ratings by Zone", pad=10, fontsize=12)
@@ -106,7 +106,7 @@ def generate_time_spent_chart(zone_data: List[Dict[str, Any]]) -> str:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     bar_plot = sns.barplot(
-        data=df, x="zone_name", y="average_time_spent", palette="Blues", ax=ax
+        data=df, x="zone_name", y="average_time_spent", hue="zone_name", palette="Blues", ax=ax, legend=False,
     )
 
     plt.title("Average Time Spent in Each Zone", pad=10, fontsize=12)
@@ -151,7 +151,7 @@ def generate_peak_visitor_times_chart(peak_data: List[Dict[str, Any]]) -> str:
     df = pd.DataFrame(peak_data)
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    bar_plot = sns.barplot(data=df, x="hour", y="total_visits", palette="Blues", ax=ax)
+    bar_plot = sns.barplot(data=df, x="hour", y="total_visits", hue="hour", palette="Blues", ax=ax, legend=False,)
 
     plt.title("Peak Visitor Times", pad=10, fontsize=12)
     plt.xlabel("Hour of Day", labelpad=8, fontsize=10)
@@ -310,7 +310,7 @@ def generate_bar_chart(section_data: List[Dict[str, Any]]) -> str:
     fig, ax = plt.subplots(figsize=(10, 6))
 
     bar_plot = sns.barplot(
-        data=df, x="zone_name", y="total_visits", palette="Blues", ax=ax
+        data=df, x="zone_name", y="total_visits", hue="zone_name", palette="Blues", ax=ax, legend=False,
     )
 
     plt.title("Visitor Counts by Section", pad=10, fontsize=12)
@@ -479,14 +479,7 @@ async def generate_pdf_report(db: Session = Depends(get_db)) -> StreamingRespons
             html_content,
             False,
             configuration=pdfkit.configuration(
-                wkhtmltopdf=os.path.join(
-                    "C:",
-                    os.sep,
-                    "Program Files",
-                    "wkhtmltopdf",
-                    "bin",
-                    "wkhtmltopdf.exe",
-                )
+                wkhtmltopdf='/usr/local/bin/wkhtmltopdf'
             ),
             options={
                 "margin-top": "15mm",

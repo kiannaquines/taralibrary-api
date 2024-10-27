@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 import uuid
 import os
 import shutil
@@ -7,7 +8,7 @@ from schema.chart_schema import ChartDataResponse
 from database.models import Zones, ZoneImage, Comment, Prediction, Category
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import UploadFile, status
-from config.settings import ZONE_UPLOAD_DIRECTORY, DIR_UPLOAD_ZONE_IMG
+from config.settings import ZONE_UPLOAD_DIRECTORY, DIR_UPLOAD_ZONE_IMG, DIR_UPLOAD_PROFILE_IMG
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -27,7 +28,7 @@ from schema.zone_schema import (
 )
 from schema.comment_schema import CommentViewResponse
 from statistics import mean
-from sqlalchemy import func
+from sqlalchemy import and_, case, func
 
 
 def create_zone(
@@ -305,73 +306,69 @@ def delete_zone(db: Session, zone_id: int) -> ZoneRemoved | None:
 
 
 def get_info_zone_service(db: Session, zone_id: int) -> ZoneInfoResponse:
-    zone = (
-        db.query(Zones)
-        .filter(Zones.id == zone_id)
-        .options(joinedload(Zones.predictions))
-        .options(joinedload(Zones.comment_related))
-        .options(joinedload(Zones.categories))
-        .options(joinedload(Zones.images))
-        .first()
-    )
-
-    if not zone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Zone not found",
+    current_day = date.today()
+    
+    try:
+        zone = (
+            db.query(Zones)
+            .filter(Zones.id == zone_id)
+            .options(
+                joinedload(Zones.predictions),
+                joinedload(Zones.comment_related),
+                joinedload(Zones.categories),
+                joinedload(Zones.images),
+            )
+            .first()
         )
 
-    try:
-        total_rating = (
-            round(mean(rating.rating for rating in zone.comment_related), 2)
-            if zone.comment_related
-            else 0.0
+        if not zone:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Zone not found",
+            )
+
+        total_rating = round(mean(rating.rating for rating in zone.comment_related), 2) if zone.comment_related else 0.0
+
+        sorted_predictions = sorted(
+            zone.predictions,
+            key=lambda prediction: prediction.first_seen,
+            reverse=True
         )
 
         return ZoneInfoResponse(
             id=zone.id,
             name=zone.name,
             description=zone.description,
-            comments=(
-                [
-                    CommentViewResponse(
-                        id=comment.id,
-                        zone_id=comment.zone_id,
-                        first_name=comment.user.first_name,
-                        last_name=comment.user.last_name,
-                        comment=comment.comment,
-                        rating=comment.rating,
-                        date_added=comment.date_added,
-                        update_date=comment.update_date,
-                    )
-                    for comment in zone.comment_related
-                ]
-                if zone.comment_related
-                else []
-            ),
-            images=(
-                [
-                    ZoneImageResponse(
-                        id=image.id,
-                        zone_id=image.zone_id,
-                        image_url=f"/static/{DIR_UPLOAD_ZONE_IMG}/{image.image_url}",
-                    )
-                    for image in zone.images
-                ]
-                if zone.images
-                else []
-            ),
-            predictions=(
-                [
-                    ChartDataResponse(
-                        count=prediction.estimated_count,
-                        time=prediction.first_seen.strftime("%I:%M %p"),
-                    )
-                    for prediction in zone.predictions
-                ]
-                if zone.predictions
-                else []
-            ),
+            comments=[
+                CommentViewResponse(
+                    id=comment.id,
+                    zone_id=comment.zone_id,
+                    first_name=comment.user.first_name,
+                    last_name=comment.user.last_name,
+                    profile_img=f"/static/{DIR_UPLOAD_PROFILE_IMG}/{comment.user.profile_img}",
+                    comment=comment.comment,
+                    rating=comment.rating,
+                    date_added=comment.date_added.strftime("%m/%d/%Y"),
+                    update_date=comment.update_date.strftime("%m/%d/%Y"),
+                )
+                for comment in zone.comment_related
+            ] if zone.comment_related else [],
+            images=[
+                ZoneImageResponse(
+                    id=image.id,
+                    zone_id=image.zone_id,
+                    image_url=f"/static/{DIR_UPLOAD_ZONE_IMG}/{image.image_url}",
+                )
+                for image in zone.images
+            ] if zone.images else [],
+            predictions=[
+                ChartDataResponse(
+                    count=prediction.estimated_count,
+                    time=prediction.first_seen.strftime("%I:%M %p"),
+                )
+                for prediction in sorted_predictions
+                if prediction.first_seen.date() == current_day
+            ] if sorted_predictions else [],
             total_rating=total_rating,
             total_reviews=len(zone.comment_related),
         )
@@ -387,7 +384,6 @@ def get_info_zone_service(db: Session, zone_id: int) -> ZoneInfoResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Something went wrong while fetching zone information: {e}",
         )
-
 
 def get_popular_zones_service(db: Session) -> List[PopularSectionResponse]:
     query_popular_zones = (
@@ -426,38 +422,51 @@ def classify_zone(estimated_count: int) -> str:
     elif estimated_count <= SPACIOUS_THRESHOLD:
         return "Spacious"
     else:
-        return "Moderate Attendance"
+        return "Moderate"
 
 
 def get_recommended_zones_service(db: Session) -> List[RecommendSectionResponse]:
+    current_datetime = datetime.now()
+    current_hour = current_datetime.replace(minute=0, second=0, microsecond=0)
+
     query_recommended_zones = (
         db.query(
             Zones,
             func.coalesce(func.avg(Comment.rating), 0.0).label("average_rating"),
-            func.min(ZoneImage.image_url).label("image_url"),
-            func.count(Prediction.estimated_count).label("estimated_count"),
+            func.max(ZoneImage.image_url).label("image_url"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Prediction.first_seen >= current_hour,
+                            Prediction.first_seen < current_hour + timedelta(hours=1)
+                        ),
+                        Prediction.estimated_count
+                    )
+                )
+            ).label("current_hour_count"),
         )
         .outerjoin(Comment)
         .outerjoin(Prediction)
         .outerjoin(ZoneImage)
         .group_by(Zones.id)
-        .order_by(func.count(Prediction.estimated_count).desc())
+        .order_by(Zones.id)
         .options(joinedload(Zones.predictions))
         .all()
     )
 
     return [
         RecommendSectionResponse(
-            section_id=popular_zone.id,
-            status=classify_zone(estimated_count),
-            section_name=popular_zone.name,
-            description=" ".join(popular_zone.description.split()[:7]),
+            section_id=zone.id,
+            status=classify_zone(current_hour_count),
+            section_name=zone.name,
+            description=" ".join(zone.description.split()[:7]),
             total_rating=round(average_rating, 2),
             image_url=(
                 f"/static/{DIR_UPLOAD_ZONE_IMG}/{image_url}" if image_url else None
             ),
         )
-        for popular_zone, average_rating, image_url, estimated_count in query_recommended_zones
+        for zone, average_rating, image_url, current_hour_count in query_recommended_zones
     ]
 
 
@@ -466,7 +475,7 @@ def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:
         db.query(
             Zones,
             func.coalesce(func.avg(Comment.rating), 0.0).label("average_rating"),
-            func.min(ZoneImage.image_url).label('image_url'),
+            func.max(ZoneImage.image_url).label('image_url'),
         )
         .outerjoin(Comment)
         .outerjoin(ZoneImage)

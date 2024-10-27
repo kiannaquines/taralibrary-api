@@ -35,7 +35,6 @@ class TimeSeriesData(BaseModel):
     count: int
     timestamp: datetime
 
-
 @websocket_router.get("/detail/count/staff", response_model=DetailsCount)
 async def get_count_staff(
     db: Session = Depends(get_db),
