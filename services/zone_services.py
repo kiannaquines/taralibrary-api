@@ -556,7 +556,6 @@ def get_section_count_analysis(db: Session, sectionId: int) -> dict:
     section_name = db.query(Zones.name).join(Prediction).filter(Prediction.zone_id == sectionId).first()
     section_name = section_name[0] if section_name else None
 
-    print(section_name)
     
     def get_count(start, end):
         return db.query(
