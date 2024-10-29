@@ -544,8 +544,6 @@ class VisitorCounts(BaseModel):
     count: int
     analysis_type: str 
 
-
-
 def get_section_count_analysis(db: Session, sectionId: int) -> dict:
     current_date_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     current_date_end = current_date_start + timedelta(days=1)
