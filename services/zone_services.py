@@ -544,14 +544,35 @@ class VisitorCounts(BaseModel):
     count: int
     analysis_type: str 
 
-class VisitorsOverTime(BaseModel):
-    timestamp: datetime
-    count: int
 
-class AllInfoCount(BaseModel):
-    count: List[VisitorCounts]
-    data_overtime: List[VisitorsOverTime]
 
-def get_data_per_section(db: Session, section_id: int) -> AllInfoCount:
-    fetch_data = db.query(Prediction).filter(Prediction.zone_id == section_id).all()
-    return fetch_data
+def get_section_count_analysis(db: Session, sectionId: int) -> dict:
+    current_date_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    current_date_end = current_date_start + timedelta(days=1)
+    yesterday_start = current_date_start - timedelta(days=1)
+    last_week_start = current_date_start - timedelta(days=7)
+    last_month_start = current_date_start - timedelta(days=30)
+
+    section_name = db.query(Zones.name).join(Prediction).filter(Prediction.zone_id == sectionId).first()
+    section_name = section_name[0] if section_name else None
+
+    print(section_name)
+    
+    def get_count(start, end):
+        return db.query(
+            func.coalesce(func.sum(Prediction.estimated_count), 0)
+        ).filter(
+            Prediction.first_seen >= start,
+            Prediction.first_seen < end,
+            Prediction.zone_id == sectionId
+        ).scalar()
+
+    counts = {
+        "section": section_name,
+        "today": VisitorCounts(count=get_count(current_date_start, current_date_end), analysis_type="Today"),
+        "yesterday": VisitorCounts(count=get_count(yesterday_start, current_date_start), analysis_type="Yesterday"),
+        "last_week": VisitorCounts(count=get_count(last_week_start, current_date_start), analysis_type="Last Week"),
+        "last_month": VisitorCounts(count=get_count(last_month_start, current_date_start), analysis_type="Last Month")
+    }
+
+    return counts

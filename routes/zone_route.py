@@ -7,6 +7,7 @@ from services.zone_services import (
     get_all_zones,
     get_popular_zones_service,
     get_recommended_zones_service,
+    get_section_count_analysis,
     get_zone,
     get_zones,
     update_zone,
@@ -153,3 +154,13 @@ async def view_zones(
     db: Session = Depends(get_db),
 ):
     return get_all_zones(db=db)
+
+
+
+@zone_router.get('/zones/info/count/section/{sectionId}')
+def get_todays_section_count(
+    sectionId: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    return get_section_count_analysis(db=db, sectionId=sectionId)
