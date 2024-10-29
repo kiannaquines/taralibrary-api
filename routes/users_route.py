@@ -50,19 +50,37 @@ def update_user_account(
     is_staff: bool,
     is_active: bool,
     db: Session = Depends(get_db),
-    profile_img: UploadFile = File(None),
+    profile_img: Optional[UploadFile] = File(None),
     current_user: User = Depends(get_current_user),
 ):
-    return update_user(
-        db=db,
-        user_id=user_id,
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        is_superuser=is_superuser,
-        is_verified=is_verified,
-        is_staff=is_staff,
-        is_active=is_active,
-        profile_img=profile_img,
-    )
+    try:
+        if profile_img:
+            return update_user(
+                db=db,
+                user_id=user_id,
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                is_superuser=is_superuser,
+                is_verified=is_verified,
+                is_staff=is_staff,
+                is_active=is_active,
+                profile_img=profile_img,
+            )
+        else:
+            return update_user(
+                db=db,
+                user_id=user_id,
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                is_superuser=is_superuser,
+                is_verified=is_verified,
+                is_staff=is_staff,
+                is_active=is_active,
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
+        

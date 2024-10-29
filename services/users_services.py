@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from config.settings import PROFILE_UPLOAD_DIRECTORY
 from database.models import User
 from fastapi import File, HTTPException, UploadFile, status
-from typing import List
+from typing import List, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from services.auth_services import get_password_hash
 from schema.user_schema import (
@@ -133,9 +133,9 @@ def update_user(
     is_verified: bool,
     is_staff: bool,
     is_active: bool,
-    profile_img: UploadFile = File(None),
+    profile_img: Optional[UploadFile] = File(None),
 ) -> UserUpdateResponse:
-
+    
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
@@ -143,6 +143,31 @@ def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+
+    if not os.path.exists(PROFILE_UPLOAD_DIRECTORY):
+        os.makedirs(PROFILE_UPLOAD_DIRECTORY)
+
+    if profile_img:
+        allowed_extensions = {"jpg", "jpeg", "png"}
+        ext = profile_img.filename.split(".")[-1].lower()
+        if ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file type. Only JPEG and PNG are allowed.",
+            )
+
+        file_location = os.path.join(PROFILE_UPLOAD_DIRECTORY, profile_img.filename)
+        if os.path.exists(file_location):
+            base, extension = os.path.splitext(profile_img.filename)
+            counter = 1
+            while os.path.exists(file_location):
+                file_location = os.path.join(PROFILE_UPLOAD_DIRECTORY, f"{base}_{counter}{extension}")
+                counter += 1
+
+        with open(file_location, "wb") as buffer:
+            buffer.write(profile_img.file.read())
+        
+        user.profile_img = os.path.basename(file_location)
 
     try:
         user.username = username
@@ -153,14 +178,6 @@ def update_user(
         user.is_verified = is_verified
         user.is_staff = is_staff
         user.is_active = is_active
-
-        if profile_img:
-            file_location = os.path.join(PROFILE_UPLOAD_DIRECTORY, profile_img.filename)
-
-            with open(file_location, "wb") as buffer:
-                buffer.write(profile_img.file.read())
-            
-            user.profile_img = profile_img.filename
 
         db.commit()
         db.refresh(user)

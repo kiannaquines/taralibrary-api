@@ -71,11 +71,17 @@ async def get_count_section(
 
 
 @websocket_router.get('/visitors/count/today/', response_model=VisitorsCount)
-async def get_today_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
-    query =  db.query(Prediction,func.coalesce(func.sum(Prediction.estimated_count),0.0).label('total_count')).filter(Prediction.zone_id == section_id).first()
+async def get_today_visitors_count_per_section(
+    section_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user),
+):
+    total_count = db.query(
+        func.coalesce(func.sum(Prediction.estimated_count), 0).label('total_count')
+    ).filter(Prediction.zone_id == section_id).scalar()
 
     return VisitorsCount(
-        count=query.total_count if query else 0,
+        count=total_count,
         analysis_type='Today Visitors'
     )
 

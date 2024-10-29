@@ -178,15 +178,13 @@ async def get_visitor_trends(
                 func.date(Prediction.first_seen).label("date"),
                 func.sum(Prediction.estimated_count).label("total_visits"),
             )
-            .filter(
-                Prediction.first_seen >= start_date, Prediction.first_seen <= end_date
-            )
             .group_by(func.date(Prediction.first_seen))
             .order_by(func.date(Prediction.first_seen))
             .all()
         )
+        
         return [
-            {"date": r.date.isoformat(), "total_visits": int(r.total_visits)}
+            {"date": r.date.strftime("%m-%d-%Y"), "total_visits": int(r.total_visits)}
             for r in results
         ]
     except SQLAlchemyError as e:
@@ -195,11 +193,14 @@ async def get_visitor_trends(
             detail=f"Database error occurred: {str(e)}",
         )
 
+    
+from matplotlib.dates import DateFormatter, DayLocator
 
 def generate_visitors_trends_chart(trends_data: List[Dict[str, Any]]) -> str:
     plt.clf()
     df = pd.DataFrame(trends_data)
     df["date"] = pd.to_datetime(df["date"])
+
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.lineplot(
         data=df,
@@ -215,6 +216,10 @@ def generate_visitors_trends_chart(trends_data: List[Dict[str, Any]]) -> str:
     plt.ylabel("Total Visits", labelpad=8, fontsize=10)
     plt.xticks(rotation=45, fontsize=8)
     plt.yticks(fontsize=8)
+
+    ax.xaxis.set_major_locator(DayLocator())
+    ax.xaxis.set_major_formatter(DateFormatter("%m-%d-%Y"))
+
     plt.tight_layout()
     plt.legend(title="Visitor Count")
 
@@ -231,21 +236,21 @@ async def get_daily_visitor_counts(db: Session) -> List[Dict[str, Any]]:
     try:
         results = (
             db.query(
-                func.date(Prediction.first_seen).label("date"),
+                func.date_format(Prediction.first_seen, "%Y-%m-%d %H:%i").label("interval"),  # Format to date and time
                 func.sum(Prediction.estimated_count).label("total_visits"),
             )
-            .group_by(func.date(Prediction.first_seen))
-            .order_by(func.date(Prediction.first_seen))
+            .group_by(func.date_format(Prediction.first_seen, "%Y-%m-%d %H:%i"))  # Group by the same interval
+            .order_by(func.date_format(Prediction.first_seen, "%Y-%m-%d %H:%i"))
             .all()
         )
         return [
-            {"date": r.date.isoformat(), "total_visits": int(r.total_visits)}
+            {"date": r.interval, "total_visits": int(r.total_visits)}
             for r in results
         ]
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred daily visitor counts.",
+            detail="Database error occurred while fetching 30-minute visitor counts.",
         )
 
 
@@ -272,10 +277,11 @@ async def get_visitor_counts_by_section(db: Session) -> List[Dict[str, Any]]:
         )
 
 
-def generate_seaborn_chart(daily_data: List[Dict[str, Any]]) -> str:
+def generate_seaborn_chart(half_hourly_data: List[Dict[str, Any]]) -> str:
     plt.clf()
-    df = pd.DataFrame(daily_data)
+    df = pd.DataFrame(half_hourly_data)
     df["date"] = pd.to_datetime(df["date"])
+
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.lineplot(
         data=df,
@@ -286,9 +292,12 @@ def generate_seaborn_chart(daily_data: List[Dict[str, Any]]) -> str:
         label="Total Visits",
     )
 
-    plt.title("Daily Visitor Counts", pad=10, fontsize=12)
-    plt.xlabel("Date", labelpad=8, fontsize=10)
+    plt.title("Visitor Counts Every 30 Minutes", pad=10, fontsize=12)
+    plt.xlabel("Date and Time", labelpad=8, fontsize=10)
     plt.ylabel("Total Visits", labelpad=8, fontsize=10)
+    
+    ax.xaxis.set_major_formatter(DateFormatter("%Y-%m-%d %H:%M"))  # Format for 30-minute intervals
+
     plt.xticks(rotation=45, fontsize=8)
     plt.yticks(fontsize=8)
     plt.tight_layout()
@@ -353,8 +362,7 @@ def create_html_template(
                 color: #343a40;
             }}
             .container {{
-                width: 90%;
-                max-width: 800px;
+                width: 100%;
                 margin: auto;
                 background: white;
                 padding: 20px;
@@ -367,12 +375,12 @@ def create_html_template(
                 padding-bottom: 10px;
             }}
             .header h1 {{
-                font-size: 24px;
+                font-size: 30px;
                 margin: 0;
                 color: #1f77b4;
             }}
             .header span {{
-                font-size: 14px;
+                font-size: 20px;
                 color: #666;
             }}
             .chart-container {{
@@ -380,8 +388,9 @@ def create_html_template(
                 margin: 20px 0;
             }}
             .chart-container img {{
+                width: 100%;
                 max-width: 100%;
-                height: auto;
+                height: auto; 
                 display: block;
                 margin: 0 auto;
                 border: 1px solid #dee2e6;
@@ -391,7 +400,7 @@ def create_html_template(
                 text-align: center;
                 margin-top: 20px;
                 color: #666;
-                font-size: 12px;
+                font-size: 20px;
                 border-top: 1px solid #dee2e6;
                 padding-top: 10px;
             }}
@@ -432,6 +441,7 @@ def create_html_template(
     </body>
     </html>
     """
+
 
 
 @generate_report_router.get(
@@ -487,8 +497,8 @@ async def generate_pdf_report(db: Session = Depends(get_db)) -> StreamingRespons
                 "margin-bottom": "15mm",
                 "margin-left": "15mm",
                 "encoding": "UTF-8",
-                "page-size": "A4",
-                "dpi": 210,
+                "page-size": "A3",
+                "dpi": 300,
             },
         )
 

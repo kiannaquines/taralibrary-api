@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 import uuid
 import os
 import shutil
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from schema.chart_schema import ChartDataResponse
@@ -537,3 +538,20 @@ def get_all_zones(db: Session) -> List[AllSectionWebApi]:
         )
 
     return zone_responses
+
+
+class VisitorCounts(BaseModel):
+    count: int
+    analysis_type: str 
+
+class VisitorsOverTime(BaseModel):
+    timestamp: datetime
+    count: int
+
+class AllInfoCount(BaseModel):
+    count: List[VisitorCounts]
+    data_overtime: List[VisitorsOverTime]
+
+def get_data_per_section(db: Session, section_id: int) -> AllInfoCount:
+    fetch_data = db.query(Prediction).filter(Prediction.zone_id == section_id).all()
+    return fetch_data
