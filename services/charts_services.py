@@ -95,3 +95,24 @@ def get_estimated_count_by_zone(db: Session, zone_id: int) -> List[EstimatedCoun
         )
         for count in estimated_count_result
     ]
+
+
+from sqlalchemy import func
+from pydantic import BaseModel
+
+class DailyVisitorsData(BaseModel):
+    timestamp: datetime
+    total_visitors: int
+
+def get_daily_visitors_by_section(db: Session, zone_id: int) -> List[DailyVisitorsData]:
+    query = (
+        db.query(
+            func.date(Prediction.first_seen).label("date"),
+            func.coalesce(func.sum(Prediction.estimated_count), 0).label('total_visitors')
+        ).filter(
+            Prediction.zone_id == zone_id,
+        ).group_by(func.date(Prediction.first_seen))
+    )
+
+    results = query.all()
+    return [DailyVisitorsData(timestamp=first_seen, total_visitors=total_visitors) for first_seen, total_visitors in results]

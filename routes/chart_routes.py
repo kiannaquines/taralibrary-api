@@ -45,3 +45,17 @@ async def get_prediction_estimated_count(
     current_user: str = Depends(get_current_user),
 ) -> List[EstimatedCount]:
     return get_estimated_count_by_zone(db=db, zone_id=zone_id)
+
+
+from database.models import User
+
+@charts_router.get(
+    "/charts/prediction/daily/zone/{zone_id}",
+    response_model=List[DailyVisitorsData],
+)
+async def get_daily_visitors_per_section(
+    zone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[DailyVisitorsData]:
+    return get_daily_visitors_by_section(db=db, zone_id=zone_id)

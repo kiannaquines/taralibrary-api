@@ -20,6 +20,73 @@ from services.send_email_services import (
     account_password_reset_email_body,
 )
 
+def admin_authenticate_user(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
+
+    if not form_data.username or not form_data.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password must be provided",
+        )
+
+    try:
+        user = db.query(User).filter(User.username == form_data.username).first()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database query failed {e}",
+        )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User still not verified yet",
+        )
+    
+    if not user.is_superuser and not user.is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to login, please contact administrator"
+        )
+    
+    try:
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={
+                "sub": user.username,
+                "verified": user.is_verified,
+                "is_superuser": user.is_superuser,
+            },
+            expires_delta=access_token_expires,
+        )
+        return LoginResponse(access_token=access_token, token_type="bearer")
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to authenticate user due to a database error {str(e)}",
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to authenticate user due to an unexpected error {str(e)}",
+        )
 
 def authenticate_user(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)

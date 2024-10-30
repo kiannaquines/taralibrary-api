@@ -6,7 +6,7 @@ from typing import Generator
 from config.settings import DATABASE_URL
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/admin/login")
 
 engine = create_engine(
     DATABASE_URL,

@@ -1,5 +1,4 @@
 from fastapi import HTTPException, status
-from typing import List
 from sqlalchemy.orm import Session
 from database.models import Device
 from schema.device_schema import DeviceResponse

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from config.settings import DIR_UPLOAD_PROFILE_IMG
 from schema.auth_schema import *
 from schema.user_schema import UserCreate
-from schema.user_schema import UserResponse
 from sqlalchemy.orm import Session
 from services.auth_services import *
 from services.db_services import get_db
@@ -12,10 +11,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 auth_router = APIRouter()
 
 
+
 @auth_router.post("/auth/register", response_model=RegisterResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     return await create_user(user=user, db=db)
 
+@auth_router.post("/auth/admin/login", response_model=LoginResponse)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
+    return admin_authenticate_user(form_data=form_data, db=db)
 
 @auth_router.post("/auth/login", response_model=LoginResponse)
 async def login(
@@ -23,16 +28,31 @@ async def login(
 ):
     return authenticate_user(form_data=form_data, db=db)
 
+from pydantic import BaseModel, EmailStr
 
-@auth_router.get("/users/me", response_model=UserResponse)
+class UserResponseData(BaseModel):
+    id: int
+    email: EmailStr
+    username: str
+    first_name: str
+    last_name: str
+    profile_img: str
+    is_superuser: bool
+    is_staff: bool
+    is_active: bool
+
+@auth_router.get("/users/me", response_model=UserResponseData)
 async def read_users_me(current_user: User = Depends(get_current_user)):
-    return UserResponse(
+    return UserResponseData(
         id=current_user.id,
         email=current_user.email,
         username=current_user.username,
         first_name=current_user.first_name,
         last_name=current_user.last_name,
         profile_img=f"/static/{DIR_UPLOAD_PROFILE_IMG}/{current_user.profile_img}",
+        is_superuser=current_user.is_superuser,
+        is_staff=current_user.is_staff,
+        is_active=current_user.is_active,
     )
 
 
