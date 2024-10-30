@@ -38,6 +38,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.include_router(generate_report_router, prefix="/api/v1", tags=["Reports"])
 app.include_router(websocket_router, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
