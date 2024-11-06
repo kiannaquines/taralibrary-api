@@ -1,3 +1,4 @@
+import pytz
 from fastapi import FastAPI
 from routes.auth_route import auth_router
 from routes.zone_route import zone_router
@@ -6,7 +7,7 @@ from services.db_services import engine
 from routes.comment_route import comment_router
 from routes.prediction_route import prediction_router
 from routes.users_route import users_router
-from routes.websocket_routes import websocket_router
+from routes.websocket_routes import count_route, realsocket_router
 from routes.device_route import device_router
 from routes.chart_routes import charts_router
 from fastapi.staticfiles import StaticFiles
@@ -15,9 +16,9 @@ from routes.category_routes import category_router
 from fastapi.staticfiles import StaticFiles
 from routes.generate_route import generate_report_router
 
+
 Base.metadata.create_all(bind=engine)
 
-origins = ["*"]
 
 app = FastAPI(
     title="Crowd Monitoring System API",
@@ -31,6 +32,7 @@ app.mount(
     name="static",
 )
 
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -39,8 +41,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(realsocket_router)
 app.include_router(generate_report_router, prefix="/api/v1", tags=["Reports"])
-app.include_router(websocket_router, prefix="/api/v1", tags=["WebSockets"])
+app.include_router(count_route, prefix="/api/v1", tags=["WebSockets"])
 app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(zone_router, prefix="/api/v1", tags=["Zones"])
 app.include_router(comment_router, prefix="/api/v1", tags=["Comment"])

@@ -1,15 +1,23 @@
 from datetime import datetime, timedelta, timezone
 from typing import List
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 from services.auth_services import get_current_user
 from services.db_services import get_db
 from pydantic import BaseModel
-from database.models import Prediction, User, Zones
+from database.models import Device, Prediction, User, Zones
+from services.socket_charts_service import manager
+import random
+import asyncio
+import logging
+import pytz
 
-websocket_router = APIRouter()
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
+count_route = APIRouter()
+realsocket_router = APIRouter()
 
 class VisitorsCount(BaseModel):
     count: int
@@ -35,7 +43,57 @@ class TimeSeriesData(BaseModel):
     count: int
     timestamp: datetime
 
-@websocket_router.get("/detail/count/staff", response_model=DetailsCount)
+
+class RealTimeChartData(BaseModel):
+    timestamp: datetime
+    count: int
+
+
+
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from datetime import datetime
+import random
+import asyncio
+
+@realsocket_router.websocket("/ws/")
+async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+    asia_manila_tz = pytz.timezone("Asia/Manila")
+    await manager.connect(websocket)
+    try:
+        while True:
+            random_limit = random.randint(10, 80)
+
+            devices = db.query(Device).filter(
+                Device.is_displayed == False
+            ).limit(random_limit).all()
+            
+            estimated_count = len(devices)
+            
+            for prediction in devices:
+                prediction.is_displayed = True
+            
+            db.commit()
+            
+            current_timestamp = datetime.now(asia_manila_tz).isoformat()
+            payload = {
+                "count": estimated_count,
+                "timestamp": current_timestamp
+            }
+            
+            await manager.broadcast(payload)
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Error in WebSocket connection: {e}")
+    finally:
+        manager.disconnect(websocket)
+
+
+
+
+@count_route.get("/detail/count/staff", response_model=DetailsCount)
 async def get_count_staff(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -44,7 +102,7 @@ async def get_count_staff(
     return DetailsCount(count=db_count, total_type="Total Staff")
 
 
-@websocket_router.get("/detail/count/admin", response_model=DetailsCount)
+@count_route.get("/detail/count/admin", response_model=DetailsCount)
 async def get_count_admin(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -53,7 +111,7 @@ async def get_count_admin(
     return DetailsCount(count=db_count, total_type="Total Admin")
 
 
-@websocket_router.get("/detail/count/users", response_model=DetailsCount)
+@count_route.get("/detail/count/users", response_model=DetailsCount)
 async def get_count_users(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -61,7 +119,7 @@ async def get_count_users(
     return DetailsCount(count=db_count, total_type="Total Users")
 
 
-@websocket_router.get("/detail/count/section", response_model=DetailsCount)
+@count_route.get("/detail/count/section", response_model=DetailsCount)
 async def get_count_section(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -70,7 +128,7 @@ async def get_count_section(
     return DetailsCount(count=db_count, total_type="Total Sections")
 
 
-@websocket_router.get('/visitors/count/today/', response_model=VisitorsCount)
+@count_route.get('/visitors/count/today/', response_model=VisitorsCount)
 async def get_today_visitors_count_per_section(
     section_id: int, 
     db: Session = Depends(get_db), 
@@ -85,7 +143,7 @@ async def get_today_visitors_count_per_section(
         analysis_type='Today Visitors'
     )
 
-@websocket_router.get('/visitors/count/last-day/', response_model=VisitorsCount)
+@count_route.get('/visitors/count/last-day/', response_model=VisitorsCount)
 async def get_last_day_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
     yesterday_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -106,7 +164,7 @@ async def get_last_day_visitors_count_per_section(section_id: int, db: Session =
 
     return VisitorsCount(count=count, analysis_type="Last Day")
 
-@websocket_router.get('/visitors/count/last-week/', response_model=VisitorsCount)
+@count_route.get('/visitors/count/last-week/', response_model=VisitorsCount)
 async def get_last_week_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
     week_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -135,7 +193,7 @@ async def get_last_week_visitors_count_per_section(section_id: int, db: Session 
     return VisitorsCount(count=count, analysis_type="Last Week")
 
 
-@websocket_router.get('/visitors/count/last-month/', response_model=VisitorsCount)
+@count_route.get('/visitors/count/last-month/', response_model=VisitorsCount)
 async def get_last_month_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
     month_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -164,7 +222,7 @@ async def get_last_month_visitors_count_per_section(section_id: int, db: Session
     return VisitorsCount(count=count, analysis_type="Last Month")
 
 
-@websocket_router.get("/visitors/count/today", response_model=VisitorsCount)
+@count_route.get("/visitors/count/today", response_model=VisitorsCount)
 async def get_visitors_count_today(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -193,7 +251,7 @@ async def get_visitors_count_today(
     return VisitorsCount(count=count, analysis_type="Today")
 
 
-@websocket_router.get("/visitors/count/last-day", response_model=VisitorsCount)
+@count_route.get("/visitors/count/last-day", response_model=VisitorsCount)
 async def get_visitors_count_last_day(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -214,7 +272,7 @@ async def get_visitors_count_last_day(
     return VisitorsCount(count=count, analysis_type="Last Day")
 
 
-@websocket_router.get("/visitors/count/last-week", response_model=VisitorsCount)
+@count_route.get("/visitors/count/last-week", response_model=VisitorsCount)
 async def get_visitors_count_last_week(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -244,7 +302,7 @@ async def get_visitors_count_last_week(
     return VisitorsCount(count=count, analysis_type="Last Week")
 
 
-@websocket_router.get("/visitors/count/last-month", response_model=VisitorsCount)
+@count_route.get("/visitors/count/last-month", response_model=VisitorsCount)
 async def get_visitors_count_last_month(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -274,7 +332,7 @@ async def get_visitors_count_last_month(
     return VisitorsCount(count=count, analysis_type="Last Month")
 
 
-@websocket_router.get(
+@count_route.get(
     "/section/utilization", response_model=List[SectionUtilizationResponse]
 )
 async def get_section_utilization(
@@ -299,7 +357,7 @@ async def get_section_utilization(
     return section_utilization
 
 
-@websocket_router.get(
+@count_route.get(
     "/time-series/per-day/visitors", response_model=List[TimeSeriesData]
 )
 async def get_time_series_visitors_day(
@@ -322,7 +380,7 @@ async def get_time_series_visitors_day(
     return time_series_data
 
 
-@websocket_router.get(
+@count_route.get(
     "/time-series/per-hour/visitors", response_model=List[TimeSeriesData]
 )
 async def get_time_series_visitors_hour(
