@@ -29,7 +29,7 @@ from schema.zone_schema import (
 )
 from schema.comment_schema import CommentViewResponse
 from statistics import mean
-from sqlalchemy import and_, case, func
+from sqlalchemy import and_, case, func, desc
 
 
 def create_zone(
@@ -435,17 +435,21 @@ def get_recommended_zones_service(db: Session) -> List[RecommendSectionResponse]
             Zones,
             func.coalesce(func.avg(Comment.rating), 0.0).label("average_rating"),
             func.max(ZoneImage.image_url).label("image_url"),
-            func.count(
-                case(
-                    (
-                        and_(
-                            Prediction.first_seen >= current_hour,
-                            Prediction.first_seen < current_hour + timedelta(hours=1)
+            func.coalesce(
+                func.max(
+                    case(
+                        (
+                            and_(
+                                Prediction.first_seen >= current_hour,
+                                Prediction.first_seen < current_hour + timedelta(hours=1)
+                            ),
+                            Prediction.estimated_count
                         ),
-                        Prediction.estimated_count
+                        else_=0
                     )
-                )
-            ).label("current_hour_count"),
+                ),
+                0
+            ).label("current_hour_estimated_count")
         )
         .outerjoin(Comment)
         .outerjoin(Prediction)
@@ -469,6 +473,7 @@ def get_recommended_zones_service(db: Session) -> List[RecommendSectionResponse]
         )
         for zone, average_rating, image_url, current_hour_count in query_recommended_zones
     ]
+
 
 
 def get_all_section_section_filters(db: Session) -> List[AllSectionResponse]:

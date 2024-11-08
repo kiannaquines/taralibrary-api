@@ -1,0 +1,17 @@
+[Unit]
+Description=TaraLibrary API Auto Start Service
+After=network.target
+
+[Service]
+ExecStart=/var/www/taralibrary-api/env/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:3000 main:app
+Restart=always
+RestartSec=10
+User=root
+Group=root
+WorkingDirectory=/var/www/taralibrary-api
+StandardOutput=append:/var/log/taralibrary-api.log
+StandardError=append:/var/log/taralibrary-api.log
+SyslogIdentifier=taralibrary-api
+
+[Install]
+WantedBy=multi-user.target
