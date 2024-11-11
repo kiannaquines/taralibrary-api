@@ -127,92 +127,52 @@ async def get_count_section(
     db_count = db.query(Zones).count()
     return DetailsCount(count=db_count, total_type="Total Sections")
 
-
-@count_route.get('/visitors/count/today/', response_model=VisitorsCount)
-async def get_today_visitors_count_per_section(
-    section_id: int, 
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user),
+# dashboard
+@count_route.get("/visitors/count/last-month", response_model=VisitorsCount)
+async def get_visitors_count_last_month(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    total_count = db.query(
-        func.coalesce(func.sum(Prediction.estimated_count), 0).label('total_count')
-    ).filter(Prediction.zone_id == section_id).scalar()
-
-    return VisitorsCount(
-        count=total_count,
-        analysis_type='Today Visitors'
-    )
-
-@count_route.get('/visitors/count/last-day/', response_model=VisitorsCount)
-async def get_last_day_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
-    yesterday_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ) - timedelta(days=1)
-    yesterday_end = yesterday_start + timedelta(days=1)
-
-    count = (
-        db.query(func.sum(Prediction.estimated_count))
-        .filter(
-            and_(
-                Prediction.first_seen.between(yesterday_start, yesterday_end),
-                Prediction.zone_id == section_id,
-            ),
-        )
-        .scalar()
-        or 0
-    )
-
-    return VisitorsCount(count=count, analysis_type="Last Day")
-
-@count_route.get('/visitors/count/last-week/', response_model=VisitorsCount)
-async def get_last_week_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
-    week_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ) - timedelta(days=7)
-    today_end = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-
-    count = (
-        db.query(func.sum(Prediction.estimated_count))
-        .filter(
-            or_(
-                Prediction.first_seen.between(week_start, today_end),
-                Prediction.last_seen.between(week_start, today_end),
-                and_(
-                    Prediction.first_seen <= week_start,
-                    Prediction.last_seen >= today_end,
-                    Prediction.zone_id == section_id,
-                ),
-            )
-        )
-        .scalar()
-        or 0
-    )
-
-    return VisitorsCount(count=count, analysis_type="Last Week")
-
-
-@count_route.get('/visitors/count/last-month/', response_model=VisitorsCount)
-async def get_last_month_visitors_count_per_section(section_id: int, db: Session = Depends(get_db), current_user : User = Depends(get_current_user),):
     month_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ) - timedelta(days=30)
     today_end = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+        hour=23, minute=59, second=59, microsecond=999999
     )
 
+    subquery_probe_request = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= month_start,
+                Device.date_detected < today_end,
+                Device.frame_type == "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .having(func.count(Device.device_addr) > 25)
+        .subquery()
+    )
+
+    subquery_other_frame = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= month_start,
+                Device.date_detected < today_end,
+                Device.frame_type != "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .subquery()
+    )
+
+
     count = (
-        db.query(func.sum(Prediction.estimated_count))
+        db.query(func.coalesce(func.count(func.distinct(Device.device_addr)), 0))
         .filter(
             or_(
-                Prediction.first_seen.between(month_start, today_end),
-                Prediction.last_seen.between(month_start, today_end),
-                and_(
-                    Prediction.first_seen <= month_start,
-                    Prediction.last_seen >= today_end,
-                    Prediction.zone_id == section_id,
-                ),
+                Device.device_addr.in_(subquery_probe_request),
+                Device.device_addr.in_(subquery_other_frame)
             )
         )
         .scalar()
@@ -221,36 +181,7 @@ async def get_last_month_visitors_count_per_section(section_id: int, db: Session
 
     return VisitorsCount(count=count, analysis_type="Last Month")
 
-
-@count_route.get("/visitors/count/today", response_model=VisitorsCount)
-async def get_visitors_count_today(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    today_end = today_start + timedelta(days=1)
-
-    count = (
-        db.query(func.sum(Prediction.estimated_count))
-        .filter(
-            or_(
-                Prediction.first_seen.between(today_start, today_end),
-                Prediction.last_seen.between(today_start, today_end),
-                and_(
-                    Prediction.first_seen <= today_start,
-                    Prediction.last_seen >= today_end,
-                ),
-            )
-        )
-        .scalar()
-        or 0
-    )
-
-    return VisitorsCount(count=count, analysis_type="Today")
-
-
+# dashboard
 @count_route.get("/visitors/count/last-day", response_model=VisitorsCount)
 async def get_visitors_count_last_day(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -260,18 +191,48 @@ async def get_visitors_count_last_day(
     ) - timedelta(days=1)
     yesterday_end = yesterday_start + timedelta(days=1)
 
-    count = (
-        db.query(func.sum(Prediction.estimated_count))
+    subquery_probe_request = (
+        db.query(Device.device_addr)
         .filter(
-            Prediction.first_seen.between(yesterday_start, yesterday_end),
+            and_(
+                Device.date_detected >= yesterday_start,
+                Device.date_detected < yesterday_end,
+                Device.frame_type == "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .having(func.count(Device.device_addr) > 25)
+        .subquery()
+    )
+
+    subquery_other_frame = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= yesterday_start,
+                Device.date_detected < yesterday_end,
+                Device.frame_type != "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .subquery()
+    )
+
+
+    count = (
+        db.query(func.coalesce(func.count(func.distinct(Device.device_addr)), 0))
+        .filter(
+            or_(
+                Device.device_addr.in_(subquery_probe_request),
+                Device.device_addr.in_(subquery_other_frame)
+            )
         )
         .scalar()
         or 0
     )
 
     return VisitorsCount(count=count, analysis_type="Last Day")
-
-
+# dashboard
 @count_route.get("/visitors/count/last-week", response_model=VisitorsCount)
 async def get_visitors_count_last_week(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -280,19 +241,43 @@ async def get_visitors_count_last_week(
         hour=0, minute=0, second=0, microsecond=0
     ) - timedelta(days=7)
     today_end = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+        hour=23, minute=59, second=59, microsecond=999999
     )
 
+    subquery_probe_request = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= week_start,
+                Device.date_detected < today_end,
+                Device.frame_type == "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .having(func.count(Device.device_addr) > 25)
+        .subquery()
+    )
+
+    subquery_other_frame = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= week_start,
+                Device.date_detected < today_end,
+                Device.frame_type != "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .subquery()
+    )
+
+
     count = (
-        db.query(func.sum(Prediction.estimated_count))
+        db.query(func.coalesce(func.count(func.distinct(Device.device_addr)), 0))
         .filter(
             or_(
-                Prediction.first_seen.between(week_start, today_end),
-                Prediction.last_seen.between(week_start, today_end),
-                and_(
-                    Prediction.first_seen <= week_start,
-                    Prediction.last_seen >= today_end,
-                ),
+                Device.device_addr.in_(subquery_probe_request),
+                Device.device_addr.in_(subquery_other_frame)
             )
         )
         .scalar()
@@ -300,36 +285,60 @@ async def get_visitors_count_last_week(
     )
 
     return VisitorsCount(count=count, analysis_type="Last Week")
-
-
-@count_route.get("/visitors/count/last-month", response_model=VisitorsCount)
-async def get_visitors_count_last_month(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+# dashboard
+@count_route.get("/visitors/count/today", response_model=VisitorsCount)
+async def get_visitors_count_today(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    month_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ) - timedelta(days=30)
-    today_end = datetime.now(timezone.utc).replace(
+    today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
+    
+    today_end = today_start + timedelta(days=1)
+
+    subquery_probe_request = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= today_start,
+                Device.date_detected < today_end,
+                Device.frame_type == "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .having(func.count(Device.device_addr) > 25)
+        .subquery()
+    )
+
+    subquery_other_frame = (
+        db.query(Device.device_addr)
+        .filter(
+            and_(
+                Device.date_detected >= today_start,
+                Device.date_detected < today_end,
+                Device.frame_type != "Probe Request"
+            )
+        )
+        .group_by(Device.device_addr)
+        .subquery()
+    )
+
 
     count = (
-        db.query(func.sum(Prediction.estimated_count))
+        db.query(func.coalesce(func.count(func.distinct(Device.device_addr)), 0))
         .filter(
             or_(
-                Prediction.first_seen.between(month_start, today_end),
-                Prediction.last_seen.between(month_start, today_end),
-                and_(
-                    Prediction.first_seen <= month_start,
-                    Prediction.last_seen >= today_end,
-                ),
+                Device.device_addr.in_(subquery_probe_request),
+                Device.device_addr.in_(subquery_other_frame)
             )
         )
         .scalar()
         or 0
     )
 
-    return VisitorsCount(count=count, analysis_type="Last Month")
+    return VisitorsCount(count=count, analysis_type="Today")
+
 
 
 @count_route.get(

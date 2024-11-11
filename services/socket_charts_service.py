@@ -25,7 +25,7 @@ class ConnectionManager:
     async def broadcast(self, message: dict):
         """Send a message to all connected WebSocket clients."""
         tasks = []
-        message_str = json.dumps(message)  # Convert dict to JSON string
+        message_str = json.dumps(message)
         for connection in self.active_connections:
             tasks.append(connection.send_text(message_str))
         await asyncio.gather(*tasks)

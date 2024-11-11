@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from schema.chart_schema import ChartDataResponse
-from database.models import Zones, ZoneImage, Comment, Prediction, Category
+from database.models import Zones, ZoneImage, Comment, Prediction, Category, Device
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import UploadFile, status
 from config.settings import ZONE_UPLOAD_DIRECTORY, DIR_UPLOAD_ZONE_IMG, DIR_UPLOAD_PROFILE_IMG
@@ -543,6 +543,7 @@ def get_all_zones(db: Session) -> List[AllSectionWebApi]:
 class VisitorCounts(BaseModel):
     count: int
     analysis_type: str 
+from sqlalchemy import and_, func, or_
 
 def get_section_count_analysis(db: Session, sectionId: int) -> dict:
     current_date_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -551,25 +552,60 @@ def get_section_count_analysis(db: Session, sectionId: int) -> dict:
     last_week_start = current_date_start - timedelta(days=7)
     last_month_start = current_date_start - timedelta(days=30)
 
-    section_name = db.query(Zones.name).join(Prediction).filter(Prediction.zone_id == sectionId).first()
+    section_name = db.query(Zones.name).join(Device).filter(Device.zone == sectionId).first()
     section_name = section_name[0] if section_name else None
 
-    
     def get_count(start, end):
-        return db.query(
-            func.coalesce(func.sum(Prediction.estimated_count), 0)
-        ).filter(
-            Prediction.first_seen >= start,
-            Prediction.first_seen < end,
-            Prediction.zone_id == sectionId
-        ).scalar()
+        subquery_probe_request = (
+            db.query(Device.device_addr)
+            .filter(
+                and_(
+                    Device.date_detected >= start,
+                    Device.date_detected < end,
+                    Device.zone == sectionId,
+                    Device.frame_type == "Probe Request"
+                )
+            )
+            .group_by(Device.device_addr)
+            .having(func.count(Device.device_addr) > 25)
+            .subquery()
+        )
+
+        subquery_other_frame = (
+            db.query(Device.device_addr)
+            .filter(
+                and_(
+                    Device.date_detected >= start,
+                    Device.date_detected < end,
+                    Device.zone == sectionId,
+                    Device.frame_type != "Probe Request"
+                )
+            )
+            .group_by(Device.device_addr)
+            .subquery()
+        )
+
+        count = (
+            db.query(func.coalesce(func.count(func.distinct(Device.device_addr)), 0))
+            .filter(
+                or_(
+                    Device.device_addr.in_(subquery_probe_request),
+                    Device.device_addr.in_(subquery_other_frame)
+                )
+            )
+            .scalar()
+            or 0
+        )
+
+        return count
 
     counts = {
         "section": section_name,
         "today": VisitorCounts(count=get_count(current_date_start, current_date_end), analysis_type="Today"),
         "yesterday": VisitorCounts(count=get_count(yesterday_start, current_date_start), analysis_type="Yesterday"),
         "last_week": VisitorCounts(count=get_count(last_week_start, current_date_start), analysis_type="Last Week"),
-        "last_month": VisitorCounts(count=get_count(last_month_start, current_date_start), analysis_type="Last Month")
+        "last_month": VisitorCounts(count=get_count(last_month_start, current_date_start), analysis_type="Last Month"),
+        "last_day": VisitorCounts(count=get_count(yesterday_start, current_date_end), analysis_type="Last Day")
     }
 
     return counts
