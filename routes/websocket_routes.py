@@ -55,7 +55,9 @@ from sqlalchemy import func
 from datetime import datetime
 import random
 import asyncio
+import json
 
+# realtime chart
 @realsocket_router.websocket("/ws/")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     asia_manila_tz = pytz.timezone("Asia/Manila")
@@ -89,10 +91,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         logger.error(f"Error in WebSocket connection: {e}")
     finally:
         manager.disconnect(websocket)
-
-
-
-
+# count staff
 @count_route.get("/detail/count/staff", response_model=DetailsCount)
 async def get_count_staff(
     db: Session = Depends(get_db),
@@ -100,8 +99,7 @@ async def get_count_staff(
 ):
     db_count = db.query(User).filter(User.is_superuser == True).count()
     return DetailsCount(count=db_count, total_type="Total Staff")
-
-
+# count admin
 @count_route.get("/detail/count/admin", response_model=DetailsCount)
 async def get_count_admin(
     db: Session = Depends(get_db),
@@ -109,16 +107,14 @@ async def get_count_admin(
 ):
     db_count = db.query(User).filter(User.is_superuser == True).count()
     return DetailsCount(count=db_count, total_type="Total Admin")
-
-
+# count users
 @count_route.get("/detail/count/users", response_model=DetailsCount)
 async def get_count_users(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     db_count = db.query(User).count()
     return DetailsCount(count=db_count, total_type="Total Users")
-
-
+# count section
 @count_route.get("/detail/count/section", response_model=DetailsCount)
 async def get_count_section(
     db: Session = Depends(get_db),
@@ -339,8 +335,6 @@ async def get_visitors_count_today(
 
     return VisitorsCount(count=count, analysis_type="Today")
 
-
-
 @count_route.get(
     "/section/utilization", response_model=List[SectionUtilizationResponse]
 )
@@ -365,7 +359,6 @@ async def get_section_utilization(
 
     return section_utilization
 
-
 @count_route.get(
     "/time-series/per-day/visitors", response_model=List[TimeSeriesData]
 )
@@ -387,7 +380,6 @@ async def get_time_series_visitors_day(
         TimeSeriesData(count=row.count, timestamp=row.timestamp) for row in result
     ]
     return time_series_data
-
 
 @count_route.get(
     "/time-series/per-hour/visitors", response_model=List[TimeSeriesData]
